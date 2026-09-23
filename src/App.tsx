@@ -113,16 +113,16 @@ const BrandMark: React.FC<{ className?: string }> = ({ className = 'w-20 h-20' }
   </svg>
 );
 
-const TRIP_PUBLIC_COLUMNS = 'id, requester_id, volunteer_id, origin_area_label, destination_area_label, status, requester_relation, created_at, accepted_at, completed_at, scheduled_at';
+const TRIP_PUBLIC_COLUMNS = 'id, requester_id, volunteer_id, origin_area_label, destination_area_label, status, requester_relation, created_at, accepted_at, completed_at, scheduled_at, passenger_count, special_notes';
 const PENDING_PROFILE_KEY = 'shahm.pendingProfile';
 
-const StitchBottomNav: React.FC<{ active: 'trips' | 'request' | 'guides' | 'account'; onChange: (tab: 'trips' | 'request' | 'guides' | 'account') => void }> = ({ active, onChange }) => {
+const StitchBottomNav: React.FC<{ active: 'trips' | 'request' | 'guides' | 'account'; onChange: (tab: 'trips' | 'request' | 'guides' | 'account') => void; showRequest: boolean }> = ({ active, onChange, showRequest }) => {
   const items = [
     { id: 'trips' as const, label: 'المشاوير', icon: CarFront },
     { id: 'request' as const, label: 'طلب عون', icon: Handshake },
     { id: 'guides' as const, label: 'الإرشادات', icon: BookOpen },
     { id: 'account' as const, label: 'حسابي', icon: UserRound },
-  ];
+  ].filter((item) => showRequest || item.id !== 'request');
 
   return (
     <nav className="stitch-bottom-nav fixed inset-x-0 bottom-0 z-40 pb-[env(safe-area-inset-bottom)]" aria-label="التنقل الرئيسي">
@@ -176,6 +176,15 @@ export const App: React.FC = () => {
   const [tripTiming, setTripTiming] = useState<'now' | 'scheduled'>('now');
   const [scheduledDay, setScheduledDay] = useState<0 | 1 | 2>(0);
   const [scheduledTime, setScheduledTime] = useState('');
+  const [scheduledHour, setScheduledHour] = useState('');
+  const [scheduledMinute, setScheduledMinute] = useState('00');
+  const [scheduledPeriod, setScheduledPeriod] = useState<'AM' | 'PM'>('AM');
+  const [passengerCount, setPassengerCount] = useState(1);
+  const [specialNotes, setSpecialNotes] = useState('');
+  const [assistanceType, setAssistanceType] = useState('tire');
+  const [assistanceDescription, setAssistanceDescription] = useState('');
+  const [assistanceLoading, setAssistanceLoading] = useState(false);
+  const [assistanceSuccess, setAssistanceSuccess] = useState(false);
 
   // Patient safety brief — collected once on the requester's profile.
   const [patientAge, setPatientAge] = useState('');
@@ -644,7 +653,11 @@ export const App: React.FC = () => {
           destination_lat: dest.lat,
           destination_lng: dest.lng,
           requester_relation: relation,
-          scheduled_at: scheduledDate ? scheduledDate.toISOString() : new Date().toISOString(),
+          scheduled_at: scheduledDate
+            ? scheduledDate.toISOString()
+            : new Date(Date.now() + 60_000).toISOString(),
+          passenger_count: passengerCount,
+          special_notes: specialNotes.trim() || null,
         }),
       });
 
@@ -671,6 +684,27 @@ export const App: React.FC = () => {
     } finally {
       setCreateTripLoading(false);
     }
+  };
+
+  const handleCreateAssistanceRequest = async () => {
+    if (assistanceDescription.trim().length < 5) {
+      setErrorMessage('اكتب وصف المشكلة بالتفصيل قبل إرسال طلب العون.');
+      return;
+    }
+    setAssistanceLoading(true);
+    setErrorMessage(null);
+    setAssistanceSuccess(false);
+    const { error } = await supabase.rpc('create_assistance_request', {
+      p_issue_type: assistanceType,
+      p_description: assistanceDescription.trim(),
+    });
+    setAssistanceLoading(false);
+    if (error) {
+      setErrorMessage(error.message);
+      return;
+    }
+    setAssistanceDescription('');
+    setAssistanceSuccess(true);
   };
 
   const translateTripError = (message: string): string => {
@@ -832,7 +866,7 @@ export const App: React.FC = () => {
                   <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15">
                     <CarFront className="h-5 w-5" />
                   </span>
-                  <span className="flex flex-col text-right"><span className="text-base font-bold">الدخول كمتطوع</span><span className="text-xs text-[#98e9b8]">أرغب بنقل المرضى وكسب الأجر</span></span>
+                  <span className="flex flex-col text-right"><span className="text-base font-bold">الدخول كشهم</span><span className="text-xs text-[#98e9b8]">أرغب في مساعدة الناس وكسب الأجر</span></span>
                 </span>
                 <ArrowLeft className="h-5 w-5 opacity-80" />
               </button>
@@ -858,18 +892,6 @@ export const App: React.FC = () => {
               <p className="text-xs leading-6 text-[#3f4942]">خدمة غير ربحية ومجانية بالكامل، وبياناتك وخصوصيتك في أمان تام.</p>
             </div>
 
-            <div className="flex items-center justify-center gap-1 text-center text-sm text-[#3f4942]">
-              <span>مستخدم جديد؟</span>
-              <button
-                type="button"
-                onClick={() => {
-                  handleGoogleLogin('requester');
-                }}
-                className="font-bold text-[#146B44] underline underline-offset-4 transition-opacity hover:opacity-80"
-              >
-                المتابعة كمستفيد
-              </button>
-            </div>
           </main>
         </div>
       </div>
@@ -1034,6 +1056,16 @@ export const App: React.FC = () => {
     d.setHours(h, m, 0, 0);
     return d;
   };
+  const applyDigitalTime = () => {
+    const hour = Number(scheduledHour);
+    const minute = Number(scheduledMinute);
+    if (!Number.isInteger(hour) || hour < 1 || hour > 12 || !Number.isInteger(minute) || minute < 0 || minute > 59) {
+      setScheduledTime('');
+      return;
+    }
+    const hour24 = scheduledPeriod === 'PM' ? (hour % 12) + 12 : hour % 12;
+    setScheduledTime(`${String(hour24).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
+  };
   const scheduledDate = tripTiming === 'scheduled' ? getScheduledDate(scheduledDay, scheduledTime) : null;
   const scheduleInvalidReason =
     tripTiming === 'scheduled'
@@ -1167,7 +1199,7 @@ export const App: React.FC = () => {
               </div>
               <div className="min-w-0">
                 <h2 className="text-base font-bold text-[#005131]">سلامتك أولاً، والناس للناس</h2>
-                <p className="mt-1 text-sm leading-7 text-[#3f4942]">مشاوير شَهْم مجانية وتطوعية بالكامل، لمساندتك في الوصول لموعدك بكرامة وأمان.</p>
+                <p className="mt-1 text-sm leading-7 text-[#3f4942]">مشاوير مجانية بالكامل، لمساندتك في الوصول لموعدك بكرامة وأمان.</p>
               </div>
             </div>
             {reportSuccess && (
@@ -1190,7 +1222,7 @@ export const App: React.FC = () => {
                     </div>
                     <span className="inline-flex items-center gap-2 rounded-full bg-[#8df5b7]/50 px-3 py-1 text-xs font-bold text-[#005131]">
                       <span className="h-2 w-2 animate-pulse rounded-full bg-[#006d41]" />
-                      جارٍ البحث عن متطوع شهم قريب
+                      جارٍ البحث عن شهم قريب
                     </span>
                     <h3 className="text-xl font-bold text-[#101f17]">
                       {activeRequesterTrip.scheduled_at ? 'تم حجز الرحلة' : 'جارٍ البحث عن شهم قريب...'}
@@ -1216,7 +1248,7 @@ export const App: React.FC = () => {
                     </div>
                       <div className="stitch-soft-card flex items-start gap-3 p-4 text-right">
                         <ShieldCheck className="mt-1 h-5 w-5 shrink-0 text-[#006d41]" />
-                        <div><p className="text-sm font-bold text-[#005131]">متطوعون موثقون قريبون منك</p><p className="mt-1 text-xs leading-6 text-[#3f4942]">طلبك ظاهر للمتطوعين القريبين فقط، وبيانات التواصل تظل محمية حتى القبول.</p></div>
+                        <div><p className="text-sm font-bold text-[#005131]">شهم موثق قريب منك</p><p className="mt-1 text-xs leading-6 text-[#3f4942]">طلبك ظاهر للشهم القريب فقط، وبيانات التواصل تظل محمية حتى القبول.</p></div>
                       </div>
                     <button
                       onClick={() => handleCancelTrip(activeRequesterTrip.id)}
@@ -1329,12 +1361,15 @@ export const App: React.FC = () => {
                           </button>
                         ))}
                       </div>
-                      <input
-                        type="time"
-                        value={scheduledTime}
-                        onChange={(e) => setScheduledTime(e.target.value)}
-                        className="w-full h-[44px] px-4 bg-white border border-[#8A949E] rounded-xl text-base text-[#1F2430] focus:border-[#2F6FED] focus:outline-none"
-                      />
+                      <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                        <input type="number" min={1} max={12} value={scheduledHour} onChange={(event) => setScheduledHour(event.target.value)} placeholder="الساعة" className="h-11 rounded-xl border border-[#8A949E] bg-white px-3 text-sm" />
+                        <select value={scheduledMinute} onChange={(event) => setScheduledMinute(event.target.value)} className="h-11 rounded-xl border border-[#8A949E] bg-white px-3 text-sm">
+                          {Array.from({ length: 60 }, (_, minute) => <option key={minute} value={String(minute).padStart(2, '0')}>{String(minute).padStart(2, '0')}</option>)}
+                        </select>
+                        <select value={scheduledPeriod} onChange={(event) => setScheduledPeriod(event.target.value as 'AM' | 'PM')} className="h-11 rounded-xl border border-[#8A949E] bg-white px-3 text-sm"><option>AM</option><option>PM</option></select>
+                      </div>
+                      <button type="button" onClick={applyDigitalTime} className="h-10 w-full rounded-xl bg-[#146B44] text-sm font-semibold text-white">تعيين</button>
+                      {scheduledTime && <p className="text-xs text-[#146B44]">الوقت المحدد: {scheduledTime}</p>}
                       {scheduleInvalidReason && (
                         <p className="text-xs text-[#B53A3A]">{scheduleInvalidReason}</p>
                       )}
@@ -1366,6 +1401,18 @@ export const App: React.FC = () => {
                   </div>
                 </div>
 
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-[#1F2430]">عدد الأفراد</label>
+                  <select value={passengerCount} onChange={(event) => setPassengerCount(Number(event.target.value))} className="h-11 w-full rounded-xl border border-[#8A949E] bg-white px-3 text-sm text-[#1F2430]">
+                    {[1, 2, 3, 4].map((count) => <option key={count} value={count}>{count}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-[#1F2430]">ملاحظات</label>
+                  <textarea value={specialNotes} onChange={(event) => setSpecialNotes(event.target.value)} maxLength={500} placeholder="مثال: كرسي متحرك، عكاز، شنط، احتياجات خاصة..." className="min-h-20 w-full rounded-xl border border-[#8A949E] bg-white p-3 text-sm text-[#1F2430] focus:border-[#146B44] focus:outline-none" />
+                </div>
+
                 <div className="p-3 bg-[#F7F8F9] rounded-xl border border-[#8A949E]/30 space-y-2">
                   <label className="flex items-start gap-2 cursor-pointer">
                     <input
@@ -1392,11 +1439,15 @@ export const App: React.FC = () => {
           </>
         )}
 
-        {showVolunteerView && activeAppTab === 'request' && (
+        {profile?.role === 'volunteer' && activeAppTab === 'request' && (
           <section className="stitch-card space-y-4 p-5">
-            <div className="stitch-soft-card flex items-start gap-3 p-4"><Handshake className="mt-1 h-5 w-5 shrink-0 text-[#005131]" /><div><h2 className="font-bold text-[#005131]">طلب عون</h2><p className="mt-1 text-sm leading-7 text-[#3f4942]">لو أنت محتاج مشوار علاجي، استخدم حساب المستفيد حتى نربط الطلب ببياناتك الطبية والتواصل الآمن.</p></div></div>
-            <button type="button" onClick={() => handleSignOut()} className="stitch-primary-button w-full px-4 text-sm">الخروج والبدء كمستفيد</button>
-            <p className="text-center text-xs leading-6 text-[#6f7a71]">يمكنك استخدام نفس حساب Google واختيار دور المستفيد عند الدخول.</p>
+            <div className="stitch-soft-card flex items-start gap-3 p-4"><Handshake className="mt-1 h-5 w-5 shrink-0 text-[#005131]" /><div><h2 className="font-bold text-[#005131]">طلب عون</h2><p className="mt-1 text-sm leading-7 text-[#3f4942]">لو عربيتك عطلت أو عندك مشكلة على الطريق، اطلب مساعدة من الشهم القريب منك.</p></div></div>
+            {assistanceSuccess && <div className="rounded-xl bg-[#E6F4ED] p-3 text-sm text-[#146B44]">تم إرسال طلب العون.</div>}
+            <select value={assistanceType} onChange={(event) => setAssistanceType(event.target.value)} className="h-11 w-full rounded-xl border border-[#8A949E] bg-white px-3 text-sm">
+              <option value="tire">كاوتش</option><option value="fuel">بنزين</option><option value="battery">بطارية</option><option value="water">مياه</option><option value="breakdown">عطل في العربية</option><option value="other">أخرى</option>
+            </select>
+            <textarea value={assistanceDescription} onChange={(event) => setAssistanceDescription(event.target.value)} maxLength={1000} placeholder="اكتب المشكلة بالتفصيل..." className="min-h-28 w-full rounded-xl border border-[#8A949E] bg-white p-3 text-sm" />
+            <button type="button" onClick={handleCreateAssistanceRequest} disabled={assistanceLoading} className="stitch-primary-button w-full px-4 text-sm">{assistanceLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin" /> : 'إرسال طلب عون'}</button>
           </section>
         )}
 
@@ -1436,6 +1487,8 @@ export const App: React.FC = () => {
                 <div className="stitch-soft-card space-y-2 p-4 text-right text-sm">
                   <div><strong>نقطة الانطلاق:</strong> {activeVolunteerTripData.origin_address}</div>
                   <div><strong>الوجهة:</strong> {activeVolunteerTripData.destination_address}</div>
+                  <div><strong>عدد الأفراد:</strong> {activeVolunteerTripData.passenger_count ?? 1}</div>
+                  {activeVolunteerTripData.special_notes && <div><strong>ملاحظات:</strong> {activeVolunteerTripData.special_notes}</div>}
                 </div>
 
                 <div className="stitch-soft-card space-y-3 p-4">
@@ -1559,6 +1612,9 @@ export const App: React.FC = () => {
                         <span>{trip.destination_area_label}</span>
                       </div>
 
+                      <div className="text-xs text-[#3f4942]">عدد الأفراد: {trip.passenger_count ?? 1}</div>
+                      {trip.special_notes && <div className="rounded-lg bg-[#F7F8F9] px-2 py-1.5 text-xs text-[#3f4942]">ملاحظات: {trip.special_notes}</div>}
+
                       <div className="flex items-center gap-1.5 rounded-lg bg-[#e6f8ec] px-2 py-1.5 text-xs text-[#005131]"><ShieldCheck className="h-3.5 w-3.5" /><span>بيانات الحالة تظهر بعد قبول المشوار فقط</span></div>
                     </div>
                   ))
@@ -1594,6 +1650,8 @@ export const App: React.FC = () => {
                   <div className="stitch-card mt-3 space-y-3 p-4">
                     <div className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-[#005131]" /><h3 className="font-bold text-[#101f17]">بيانات المشوار المعتمدة</h3></div>
                     <div className="flex items-start gap-2 rounded-xl bg-[#e1f2e6] p-3 text-xs leading-6 text-[#3f4942]"><LockKeyhole className="mt-1 h-4 w-4 shrink-0 text-[#005131]" />بيانات الحالة والعنوان ورقم التواصل تظل مخفية حتى قبول المشوار حفاظًا على خصوصية المستفيد.</div>
+                    <div className="text-sm text-[#3f4942]"><strong>عدد الأفراد:</strong> {selectedTripDetails.passenger_count ?? 1}</div>
+                    {selectedTripDetails.special_notes && <div className="rounded-xl bg-[#F7F8F9] p-3 text-sm leading-6 text-[#3f4942]"><strong>ملاحظات:</strong> {selectedTripDetails.special_notes}</div>}
                   </div>
 
                   <div className="mt-3 flex flex-col gap-2"><button disabled={acceptingTripId === selectedTripDetails.id} onClick={() => handleAcceptTrip(selectedTripDetails.id)} className="stitch-primary-button flex w-full items-center justify-center gap-2 px-4 text-base">{acceptingTripId === selectedTripDetails.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <><Handshake className="h-5 w-5" />مساعدة هذا الشخص وقبول المشوار</>}</button><button type="button" onClick={() => setSelectedTripDetails(null)} className="py-2 text-sm font-semibold text-[#3f4942] underline underline-offset-4">الرجوع إلى قائمة الطلبات المتاحة</button></div>
@@ -1637,7 +1695,7 @@ export const App: React.FC = () => {
           onSuccess={() => setReportSuccess(true)}
         />
       </main>
-      {!isAdmin && <StitchBottomNav active={activeAppTab} onChange={setActiveAppTab} />}
+      {!isAdmin && <StitchBottomNav active={activeAppTab} onChange={setActiveAppTab} showRequest={profile?.role === 'volunteer'} />}
     </div>
   );
 };

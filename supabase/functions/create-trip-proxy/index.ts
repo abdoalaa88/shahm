@@ -11,6 +11,8 @@ type CreateTripPayload = {
   destination_lng: number;
   requester_relation: RequesterRelation;
   scheduled_at?: string | null;
+  passenger_count?: number;
+  special_notes?: string | null;
 };
 
 const configuredOrigins = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
@@ -61,6 +63,12 @@ const isValidScheduledAt = (value: unknown): value is string | null | undefined 
   return parsed.getTime() >= now - 60_000 && parsed.getTime() <= now + twoDaysMs;
 };
 
+const isValidPassengerCount = (value: unknown): value is number =>
+  Number.isInteger(value) && (value as number) >= 1 && (value as number) <= 4;
+
+const isValidSpecialNotes = (value: unknown): value is string | null | undefined =>
+  value === null || value === undefined || (typeof value === 'string' && value.length <= 500);
+
 const validatePayload = (payload: unknown): payload is CreateTripPayload => {
   if (!payload || typeof payload !== 'object') return false;
   const data = payload as Partial<CreateTripPayload>;
@@ -75,7 +83,9 @@ const validatePayload = (payload: unknown): payload is CreateTripPayload => {
     isFiniteCoordinate(data.destination_lat, -90, 90) &&
     isFiniteCoordinate(data.destination_lng, -180, 180) &&
     (data.requester_relation === 'patient' || data.requester_relation === 'guardian' || data.requester_relation === 'companion') &&
-    isValidScheduledAt(data.scheduled_at)
+    isValidScheduledAt(data.scheduled_at) &&
+    isValidPassengerCount(data.passenger_count ?? 1) &&
+    isValidSpecialNotes(data.special_notes)
   );
 };
 
@@ -156,6 +166,8 @@ Deno.serve(async (request) => {
     p_requester_relation: data.requester_relation,
     p_client_ip: trustedIp,
     p_scheduled_at: data.scheduled_at ?? null,
+    p_passenger_count: data.passenger_count ?? 1,
+    p_special_notes: data.special_notes ?? null,
   });
 
   if (tripError) {

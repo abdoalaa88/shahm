@@ -43,6 +43,8 @@ export interface PublicTrip {
   accepted_at?: string;
   completed_at?: string;
   scheduled_at?: string | null;
+  passenger_count: number;
+  special_notes?: string | null;
 }
 
 export interface NearbyTrip {
@@ -56,6 +58,8 @@ export interface NearbyTrip {
   created_at: string;
   scheduled_at: string | null;
   distance_km?: number;
+  passenger_count: number;
+  special_notes?: string | null;
 }
 
 export interface ContactCardData {
@@ -72,6 +76,8 @@ export interface ContactCardData {
   destination_lng: number;
   patient_age?: number | null;
   patient_condition?: string | null;
+  passenger_count?: number;
+  special_notes?: string | null;
 }
 
 export interface Report {

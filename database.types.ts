@@ -153,6 +153,54 @@ export type Database = {
           },
         ]
       }
+      trips: {
+        Row: {
+          accepted_at: string | null
+          completed_at: string | null
+          created_at: string
+          destination_area_label: string
+          id: string
+          origin_area_label: string
+          passenger_count: number
+          requester_id: string
+          requester_relation: Database["public"]["Enums"]["requester_relation"]
+          scheduled_at: string
+          special_notes: string | null
+          status: Database["public"]["Enums"]["trip_status"]
+          volunteer_id: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          destination_area_label: string
+          id?: string
+          origin_area_label: string
+          passenger_count?: number
+          requester_id: string
+          requester_relation?: Database["public"]["Enums"]["requester_relation"]
+          scheduled_at: string
+          special_notes?: string | null
+          status?: Database["public"]["Enums"]["trip_status"]
+          volunteer_id?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          destination_area_label?: string
+          id?: string
+          origin_area_label?: string
+          passenger_count?: number
+          requester_id?: string
+          requester_relation?: Database["public"]["Enums"]["requester_relation"]
+          scheduled_at?: string
+          special_notes?: string | null
+          status?: Database["public"]["Enums"]["trip_status"]
+          volunteer_id?: string | null
+        }
+        Relationships: []
+      }
       reports: {
         Row: {
           created_at: string
