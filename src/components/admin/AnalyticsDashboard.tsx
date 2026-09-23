@@ -72,7 +72,7 @@ export const AnalyticsDashboard: React.FC = () => {
             <h1 className="text-2xl font-bold text-[#1F2430]">مؤشرات الأثر والتكافل المجتمعي</h1>
           </div>
           <p className="text-xs text-[#6B7280] mt-1">
-            إحصاءات مجمعة ومشفرة تحمي خصوصية المستفيدين والشهماء (k-Anonymity ≥ 5)
+            إحصاءات مجمعة ومشفرة تحمي خصوصية المستفيدين وأكتر من شهم (k-Anonymity ≥ 5)
           </p>
         </div>
         <button

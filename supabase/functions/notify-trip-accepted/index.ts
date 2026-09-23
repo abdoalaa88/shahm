@@ -93,8 +93,8 @@ Deno.serve(async (request) => {
       body: JSON.stringify({
         user_id: trip.requester_id,
         payload: {
-          title: "تم قبول طلبك",
-          body: "وافق أحد المتطوعين على طلب الرحلة.",
+          title: "شهم قبل الرحلة",
+          body: "شهم قبل الرحلة.",
           url: "/",
           icon: "/icons/icon-192.png",
         },

@@ -19,16 +19,16 @@ const configuredOrigins = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
-const allowedOrigins = Array.from(new Set([
-  'https://shahm-app.pages.dev',
+const allowedOrigins = new Set([
+  'https://shahm-eg.pages.dev',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
-  ...configuredOrigins,
-]));
+  ...configuredOrigins.filter((origin) => origin !== '*'),
+]);
 
 const jsonHeaders = (request: Request) => {
   const requestOrigin = request.headers.get('origin') ?? '';
-  const allowOrigin = allowedOrigins.includes('*') ? '*' : requestOrigin;
+  const allowOrigin = allowedOrigins.has(requestOrigin) ? requestOrigin : 'null';
 
   return {
     'Access-Control-Allow-Origin': allowOrigin,
@@ -41,7 +41,7 @@ const jsonHeaders = (request: Request) => {
 
 const isAllowedOrigin = (request: Request) => {
   const requestOrigin = request.headers.get('origin');
-  return allowedOrigins.includes('*') || (!!requestOrigin && allowedOrigins.includes(requestOrigin));
+  return !!requestOrigin && allowedOrigins.has(requestOrigin);
 };
 
 const response = (request: Request, status: number, body: Record<string, unknown>) =>
