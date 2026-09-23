@@ -558,7 +558,9 @@ export const App: React.FC = () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: ['localhost', '127.0.0.1'].includes(window.location.hostname)
+          ? window.location.origin
+          : 'https://shahm-eg.pages.dev',
         queryParams: { prompt: 'select_account' },
       },
     });
