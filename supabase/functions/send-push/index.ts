@@ -11,6 +11,7 @@ type PushPayload = {
 
 type SendPushRequest = {
   trip_id?: string;
+  assistance_id?: string;
   user_id?: string;
   payload?: Partial<PushPayload>;
 };
@@ -115,10 +116,11 @@ Deno.serve(async (request) => {
     return json(400, { error: "Request body must be valid JSON" });
   }
 
-  if ((input.trip_id && input.user_id) || (!input.trip_id && !input.user_id)) {
+  const targetCount = [input.trip_id, input.assistance_id, input.user_id].filter(Boolean).length;
+  if (targetCount !== 1) {
     return json(422, { error: "Exactly one target is required" });
   }
-  if ((input.trip_id && !isUuid(input.trip_id)) || (input.user_id && !isUuid(input.user_id))) {
+  if ((input.trip_id && !isUuid(input.trip_id)) || (input.assistance_id && !isUuid(input.assistance_id)) || (input.user_id && !isUuid(input.user_id))) {
     return json(422, { error: "Invalid target" });
   }
 
@@ -134,6 +136,12 @@ Deno.serve(async (request) => {
         p_max_age_minutes: 180,
       });
       if (error) throw new Error(`Could not find nearby volunteers: ${error.message}`);
+      userIds = (data ?? []).map((row: { user_id: string }) => row.user_id);
+    } else if (input.assistance_id) {
+      const { data, error } = await serviceClient.rpc("get_nearby_assistance_volunteer_ids", {
+        p_assistance_id: input.assistance_id,
+      });
+      if (error) throw new Error(`Could not find nearby Shahm users: ${error.message}`);
       userIds = (data ?? []).map((row: { user_id: string }) => row.user_id);
     } else {
       userIds = [input.user_id as string];

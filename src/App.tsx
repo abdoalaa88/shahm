@@ -66,9 +66,9 @@ const InstallNotice: React.FC<InstallNoticeProps> = ({ canInstall, showManualIns
         {message ? (
           <span className="font-semibold text-[#005131]">{message}</span>
         ) : showManualInstructions ? (
-          <span><strong className="text-[#005131]">ثبّت شَهْم</strong> من زر المشاركة ثم «إضافة إلى الشاشة الرئيسية».</span>
+          <><strong className="block text-base text-[#005131]">ثبّت Shahm على موبايلك</strong><span>من زر المشاركة ثم «إضافة إلى الشاشة الرئيسية».</span></>
         ) : (
-          <span><strong className="text-[#005131]">خلّي شَهْم قريب منك</strong> للوصول السريع وتلقي التنبيهات.</span>
+          <><strong className="block text-base text-[#005131]">ثبّت Shahm على موبايلك</strong><span>خلي Shahm معاك بسهولة، واطلب رحلتك وقت ما تحتاجها.</span></>
         )}
       </div>
 
@@ -77,7 +77,7 @@ const InstallNotice: React.FC<InstallNoticeProps> = ({ canInstall, showManualIns
           onClick={onInstall}
           className="flex h-10 shrink-0 items-center gap-1 rounded-full bg-[#146B44] px-4 text-sm font-semibold text-white shadow-[0_5px_14px_rgba(20,107,68,0.18)] transition-colors hover:bg-[#005131] active:bg-[#005131]"
         >
-          تثبيت
+          تثبيت التطبيق
         </button>
       )}
 
@@ -114,6 +114,7 @@ const BrandMark: React.FC<{ className?: string }> = ({ className = 'w-20 h-20' }
 
 const TRIP_PUBLIC_COLUMNS = 'id, requester_id, volunteer_id, origin_area_label, destination_area_label, status, requester_relation, created_at, accepted_at, completed_at, scheduled_at, passenger_count, special_notes';
 const PENDING_PROFILE_KEY = 'shahm.pendingProfile';
+const ACTIVE_ROLE_KEY = 'shahm.activeRole';
 
 const StitchBottomNav: React.FC<{ active: 'trips' | 'request' | 'guides' | 'account'; onChange: (tab: 'trips' | 'request' | 'guides' | 'account') => void; showRequest: boolean }> = ({ active, onChange, showRequest }) => {
   const items = [
@@ -178,6 +179,8 @@ export const App: React.FC = () => {
   const [assistanceDescription, setAssistanceDescription] = useState('');
   const [assistanceLoading, setAssistanceLoading] = useState(false);
   const [assistanceSuccess, setAssistanceSuccess] = useState(false);
+  const [nearbyAssistance, setNearbyAssistance] = useState<Array<{ id: string; issue_type: string; description: string; distance_km: number }>>([]);
+  const [acceptingAssistanceId, setAcceptingAssistanceId] = useState<string | null>(null);
 
   // Patient safety brief — collected once on the requester's profile.
   const [patientAge, setPatientAge] = useState('');
@@ -244,6 +247,8 @@ export const App: React.FC = () => {
       setErrorMessage(null);
       setProfileError(null);
       setProfileSetupRequired(false);
+      localStorage.removeItem(ACTIVE_ROLE_KEY);
+      sessionStorage.removeItem(ACTIVE_ROLE_KEY);
       setPendingTrips([]);
       setActiveRequesterTrip(null);
       setActiveVolunteerTripData(null);
@@ -305,11 +310,14 @@ export const App: React.FC = () => {
         sessionStorage.removeItem(PENDING_PROFILE_KEY);
       }
 
+      const storedRole = (localStorage.getItem(ACTIVE_ROLE_KEY) || sessionStorage.getItem(ACTIVE_ROLE_KEY)) as UserRole | null;
+      const preferredRole = pendingProfile?.role || storedRole;
       let profileQuery = supabase.from('profiles').select('*').eq('auth_user_id', uid);
-      if (pendingProfile?.role) profileQuery = profileQuery.eq('role', pendingProfile.role);
-      const { data, error } = await profileQuery.limit(1).maybeSingle();
+      if (preferredRole) profileQuery = profileQuery.eq('role', preferredRole);
+      const { data: profiles, error } = await profileQuery;
       if (error) throw error;
       if (activeUserId.current !== uid || profileRequestId.current !== requestId) return;
+      const data = profiles?.length === 1 ? profiles[0] : null;
       if (!data) {
         if (pendingProfile?.firstName && pendingProfile?.phone && pendingProfile?.role) {
           const { data: createdProfile, error: createError } = await supabase
@@ -329,9 +337,17 @@ export const App: React.FC = () => {
           if (createError) throw createError;
           if (activeUserId.current !== uid || profileRequestId.current !== requestId) return;
           setProfile(createdProfile);
+          localStorage.setItem(ACTIVE_ROLE_KEY, createdProfile.role);
+          sessionStorage.setItem(ACTIVE_ROLE_KEY, createdProfile.role);
           localStorage.removeItem(PENDING_PROFILE_KEY);
           sessionStorage.removeItem(PENDING_PROFILE_KEY);
           setProfileSetupRequired(false);
+        } else if ((profiles?.length ?? 0) > 1) {
+          setProfile(null);
+          setRoleSelection(null);
+          setAuthMode('setup');
+          setProfileSetupRequired(true);
+          setProfileError('اختار دور الحساب لاستكمال الدخول.');
         } else {
           setProfile(null);
           setRoleSelection(pendingProfile?.role || null);
@@ -340,6 +356,8 @@ export const App: React.FC = () => {
         }
       } else {
         setProfile(data);
+        localStorage.setItem(ACTIVE_ROLE_KEY, data.role);
+        sessionStorage.setItem(ACTIVE_ROLE_KEY, data.role);
         setProfileSetupRequired(false);
       }
     } catch (error: unknown) {
@@ -369,6 +387,14 @@ export const App: React.FC = () => {
       });
   };
 
+  const fetchNearbyAssistance = (lat: number, lng: number) => {
+    supabase.rpc('get_nearby_assistance_requests', { p_lat: lat, p_lng: lng, p_radius_km: 7 })
+      .then(({ data, error }) => {
+        if (error) setVolunteerLocationError(error.message);
+        else setNearbyAssistance((data || []) as typeof nearbyAssistance);
+      });
+  };
+
   const requestVolunteerLocation = () => {
     if (!('geolocation' in navigator)) {
       setVolunteerLocationStatus('error');
@@ -384,6 +410,7 @@ export const App: React.FC = () => {
         setVolunteerLocation(loc);
         setVolunteerLocationStatus('ready');
         fetchVolunteerNearbyTrips(loc.lat, loc.lng);
+        fetchNearbyAssistance(loc.lat, loc.lng);
       },
       (error) => {
         setVolunteerLocationStatus('error');
@@ -473,9 +500,17 @@ export const App: React.FC = () => {
           });
         })
         .subscribe();
+      const assistanceChannel = supabase
+        .channel('assistance-realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'assistance_requests' }, () => {
+          const loc = volunteerLocationRef.current;
+          if (loc) fetchNearbyAssistance(loc.lat, loc.lng);
+        })
+        .subscribe();
 
       return () => {
         supabase.removeChannel(channel);
+        supabase.removeChannel(assistanceChannel);
       };
     }
 
@@ -617,6 +652,8 @@ export const App: React.FC = () => {
     }
 
     setProfile(data);
+    localStorage.setItem(ACTIVE_ROLE_KEY, data.role);
+    sessionStorage.setItem(ACTIVE_ROLE_KEY, data.role);
     setProfileSetupRequired(false);
     setProfileError(null);
     localStorage.removeItem(PENDING_PROFILE_KEY);
@@ -654,13 +691,16 @@ export const App: React.FC = () => {
       });
 
       const responseText = await response.text();
-      let resJson: { error?: string; trip_id?: string } = {};
+      let resJson: { error?: string; details?: string; trip_id?: string } = {};
       try {
         resJson = JSON.parse(responseText);
       } catch {
         resJson = { error: responseText };
       }
-      if (!response.ok) throw new Error(translateTripError(resJson.error || `فشل إنشاء الطلب (${response.status})`));
+      if (!response.ok) {
+        console.error('create-trip-proxy failed', { status: response.status, code: resJson.error, details: resJson.details });
+        throw new Error(translateTripError(resJson.details || resJson.error || `فشل إنشاء الطلب (${response.status})`));
+      }
       if (!resJson.trip_id) throw new Error('تم استلام الطلب بدون رقم طلب من الخادم');
 
       const { data, error: tripLoadError } = await supabase
@@ -672,7 +712,7 @@ export const App: React.FC = () => {
       if (tripLoadError) throw new Error(`تم إنشاء الطلب لكن تعذر تحميله: ${tripLoadError.message}`);
       if (data) setActiveRequesterTrip(data as unknown as PublicTrip);
     } catch (err: any) {
-      setErrorMessage(err.message);
+      setErrorMessage(err instanceof TypeError ? 'تعذر الاتصال بالخادم. حاول مرة أخرى.' : (err.message || 'تعذر إرسال طلب الرحلة. حاول مرة أخرى.'));
     } finally {
       setCreateTripLoading(false);
     }
@@ -686,9 +726,24 @@ export const App: React.FC = () => {
     setAssistanceLoading(true);
     setErrorMessage(null);
     setAssistanceSuccess(false);
-    const { error } = await supabase.rpc('create_assistance_request', {
+    const location = await new Promise<GeolocationCoordinates | null>((resolve, reject) => {
+      if (!navigator.geolocation) return reject(new Error('geolocation-unavailable'));
+      navigator.geolocation.getCurrentPosition(
+        (position) => resolve(position.coords),
+        (error) => reject(error),
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 },
+      );
+    }).catch(() => null);
+    if (!location) {
+      setAssistanceLoading(false);
+      setErrorMessage('لازم تسمح بالموقع علشان نقدر نبعث طلب العون للشهم القريب منك.');
+      return;
+    }
+    const { data: assistanceId, error } = await supabase.rpc('create_assistance_request', {
       p_issue_type: assistanceType,
       p_description: assistanceDescription.trim(),
+      p_lat: location.latitude,
+      p_lng: location.longitude,
     });
     setAssistanceLoading(false);
     if (error) {
@@ -697,6 +752,20 @@ export const App: React.FC = () => {
     }
     setAssistanceDescription('');
     setAssistanceSuccess(true);
+    if (assistanceId) void supabase.functions.invoke('notify-assistance-request', { body: { assistance_id: assistanceId } });
+  };
+
+  const handleAcceptAssistance = async (assistanceId: string) => {
+    if (!volunteerLocation) return;
+    setAcceptingAssistanceId(assistanceId);
+    const { error } = await supabase.rpc('accept_assistance_request', {
+      p_assistance_id: assistanceId,
+      p_lat: volunteerLocation.lat,
+      p_lng: volunteerLocation.lng,
+    });
+    setAcceptingAssistanceId(null);
+    if (error) setErrorMessage(error.message);
+    else setNearbyAssistance((current) => current.filter((item) => item.id !== assistanceId));
   };
 
   const translateTripError = (message: string): string => {
@@ -821,8 +890,8 @@ export const App: React.FC = () => {
               <UserRound className="h-5 w-5" />
             </button>
             <div className="flex items-center gap-2">
-              <BrandMark className="h-8 w-8" />
               <span className="text-[1.5rem] font-black tracking-tight text-[#146B44]">شَهْم</span>
+              <BrandMark className="h-8 w-8" />
               <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#146B44]/10 bg-white/80 shadow-sm">
                 <Settings2 className="h-4 w-4 text-[#146B44]" />
               </div>
@@ -878,7 +947,6 @@ export const App: React.FC = () => {
               </button>
             </div>
 
-            <div className="flex items-center gap-3"><div className="h-px flex-1 bg-[#bfc9bf]" /><span className="text-xs text-[#6f7a71]">أو المتابعة السريعة</span><div className="h-px flex-1 bg-[#bfc9bf]" /></div>
             <div className="stitch-soft-card flex items-start gap-3 p-4">
               <LockKeyhole className="mt-1 h-5 w-5 shrink-0 text-[#005131]" />
               <p className="text-xs leading-6 text-[#3f4942]">خدمة غير ربحية ومجانية بالكامل، وبياناتك وخصوصيتك في أمان تام.</p>
@@ -1445,6 +1513,28 @@ export const App: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-3">
+                {nearbyAssistance.length > 0 && (
+                  <section className="space-y-3">
+                    <h2 className="text-base font-bold text-[#1F2430]">طلبات عون قريبة منك</h2>
+                    {nearbyAssistance.map((request) => (
+                      <div key={request.id} className="stitch-card space-y-3 p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="rounded-full bg-[#FBEFDC] px-2 py-1 text-xs font-semibold text-[#8F5A0A]">{request.issue_type}</span>
+                          <span className="text-xs text-[#146B44]">{request.distance_km} كم</span>
+                        </div>
+                        <p className="text-sm leading-6 text-[#3f4942]">{request.description}</p>
+                        <button
+                          type="button"
+                          disabled={acceptingAssistanceId === request.id}
+                          onClick={() => handleAcceptAssistance(request.id)}
+                          className="stitch-primary-button w-full px-4 text-sm"
+                        >
+                          {acceptingAssistanceId === request.id ? <Loader2 className="mx-auto h-5 w-5 animate-spin" /> : 'الاستجابة لطلب العون'}
+                        </button>
+                      </div>
+                    ))}
+                  </section>
+                )}
                 <h2 className="text-base font-bold text-[#1F2430] flex items-center justify-between">
                   <span>الطلبات المتاحة قربك</span>
                   <span className="text-xs font-normal text-[#6B7280]">({pendingTrips.length})</span>

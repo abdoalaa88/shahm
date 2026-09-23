@@ -172,7 +172,7 @@ Deno.serve(async (request) => {
 
   if (tripError) {
     console.error('create_trip failed', { code: tripError.code, message: tripError.message });
-    return response(request, 400, { error: 'Trip could not be created' });
+    return response(request, 400, { error: 'Trip could not be created', code: tripError.code, details: tripError.message });
   }
 
   try {
