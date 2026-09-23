@@ -55,27 +55,27 @@ const InstallNotice: React.FC<InstallNoticeProps> = ({ canInstall, showManualIns
   <div
     role="status"
     aria-label="تثبيت تطبيق شَهْم"
-    className="w-full max-w-2xl mx-auto mb-3 bg-[#E6F4ED] border border-[#146B44]/20 rounded-xl px-4 py-2.5"
+    className="mx-auto mb-4 w-full max-w-2xl rounded-2xl border border-[#146B44]/10 bg-[#ecfef1] px-4 py-3 shadow-[0_8px_24px_-8px_rgba(20,107,68,0.18)]"
   >
-    <div className="flex items-center gap-3">
-      <div className="w-8 h-8 shrink-0 bg-white text-[#146B44] rounded-full flex items-center justify-center shadow-sm">
-        <Download className="w-4 h-4" />
+    <div className="flex items-center gap-3 text-right">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-[#005131] shadow-[0_3px_10px_rgba(20,107,68,0.08)]">
+        <Download className="h-5 w-5" />
       </div>
 
-      <div className="flex-1 min-w-0 text-xs text-[#146B44] leading-snug">
+      <div className="min-w-0 flex-1 text-sm leading-6 text-[#3f4942]">
         {message ? (
-          <span className="font-semibold">{message}</span>
+          <span className="font-semibold text-[#005131]">{message}</span>
         ) : showManualInstructions ? (
-          <span>لتثبيت شَهْم: زر المشاركة ⬆️ ثم «إضافة إلى الشاشة الرئيسية».</span>
+          <span><strong className="text-[#005131]">ثبّت شَهْم</strong> من زر المشاركة ثم «إضافة إلى الشاشة الرئيسية».</span>
         ) : (
-          <span>ثبّت تطبيق شَهْم على شاشتك الرئيسية للوصول السريع وتلقي التنبيهات.</span>
+          <span><strong className="text-[#005131]">خلّي شَهْم قريب منك</strong> للوصول السريع وتلقي التنبيهات.</span>
         )}
       </div>
 
       {!message && canInstall && (
         <button
           onClick={onInstall}
-          className="shrink-0 h-8 px-3 rounded-lg bg-[#146B44] active:bg-[#0F5636] text-white text-xs font-bold flex items-center gap-1 transition-colors"
+          className="flex h-10 shrink-0 items-center gap-1 rounded-full bg-[#146B44] px-4 text-sm font-semibold text-white shadow-[0_5px_14px_rgba(20,107,68,0.18)] transition-colors hover:bg-[#005131] active:bg-[#005131]"
         >
           تثبيت
         </button>
@@ -84,9 +84,9 @@ const InstallNotice: React.FC<InstallNoticeProps> = ({ canInstall, showManualIns
       <button
         onClick={onDismiss}
         aria-label="إغلاق"
-        className="shrink-0 text-[#146B44]/60 hover:text-[#146B44] p-1 rounded-full transition-colors"
+        className="shrink-0 rounded-full p-2 text-[#6f7a71] transition-colors hover:bg-white hover:text-[#005131]"
       >
-        <X className="w-4 h-4" />
+        <X className="h-5 w-5" />
       </button>
     </div>
   </div>
