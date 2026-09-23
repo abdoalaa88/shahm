@@ -79,3 +79,19 @@ export async function registerPushNotifications(): Promise<boolean> {
     return false;
   }
 }
+
+export async function notifyTripAccepted(tripId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.functions.invoke('notify-trip-accepted', {
+      body: { trip_id: tripId },
+    });
+    if (error) {
+      console.error('Acceptance notification request failed:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Acceptance notification request failed:', err);
+    return false;
+  }
+}

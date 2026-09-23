@@ -163,5 +163,29 @@ Deno.serve(async (request) => {
     return response(request, 400, { error: 'Trip could not be created' });
   }
 
+  try {
+    const pushResponse = await fetch(`${supabaseUrl}/functions/v1/send-push`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${supabaseServiceRoleKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        trip_id: tripId,
+        payload: {
+          title: 'طلب رحلة قريب منك',
+          body: 'يوجد طلب نقل جديد في منطقتك.',
+          url: '/',
+          icon: '/icons/icon-192.png',
+        },
+      }),
+    });
+    if (!pushResponse.ok) console.error('New-trip push request failed', { status: pushResponse.status });
+  } catch (error) {
+    console.error('New-trip push request could not be sent', {
+      message: error instanceof Error ? error.message : 'unknown error',
+    });
+  }
+
   return response(request, 201, { trip_id: tripId });
 });

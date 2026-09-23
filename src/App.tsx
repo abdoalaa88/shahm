@@ -9,7 +9,7 @@ import { UsageMonitor } from './components/admin/UsageMonitor';
 import { UsersPanel } from './components/admin/UsersPanel';
 import { toWhatsAppNumber } from './lib/phone';
 import { useInstallPrompt } from './lib/useInstallPrompt';
-import { registerPushNotifications } from './lib/push';
+import { notifyTripAccepted, registerPushNotifications } from './lib/push';
 import {
   Phone,
   MessageSquare,
@@ -712,6 +712,7 @@ export const App: React.FC = () => {
     }
 
     if (data && data.length > 0) {
+      void notifyTripAccepted(tripId);
       const { data: contact } = await supabase.rpc('reveal_contact', { p_trip_id: tripId });
       setActiveVolunteerTripData(contact?.[0] || data[0]);
       setSelectedTripDetails(null);
