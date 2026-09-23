@@ -1,0 +1,150 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --shahm-surface: #ecfef1;
+  --shahm-surface-low: #e6f8ec;
+  --shahm-surface-high: #dbece0;
+  --shahm-primary: #005131;
+  --shahm-primary-container: #146b44;
+  --shahm-secondary: #006d41;
+  --shahm-text: #101f17;
+  --shahm-muted: #3f4942;
+  font-family: 'IBM Plex Sans Arabic', 'Noto Sans Arabic', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'liga' 1, 'calt' 1, 'kern' 1;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  height: 100%;
+}
+
+html {
+  direction: rtl;
+}
+
+body {
+  margin: 0;
+  background: var(--shahm-surface);
+  color: #101f17;
+  -webkit-tap-highlight-color: transparent;
+  font-family: 'IBM Plex Sans Arabic', 'Noto Sans Arabic', sans-serif;
+  font-size: 16px;
+  line-height: 1.625;
+  text-align: right;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  font-family: 'IBM Plex Sans Arabic', 'Noto Sans Arabic', sans-serif;
+}
+
+button,
+input,
+textarea,
+select,
+span,
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+div,
+label {
+  overflow-wrap: break-word;
+  word-break: normal;
+  text-wrap: pretty;
+}
+
+button,
+input,
+textarea,
+select {
+  text-align: right;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+input::placeholder {
+  color: #6b7280;
+}
+
+.stitch-page {
+  min-height: 100dvh;
+  background: var(--shahm-surface);
+  color: var(--shahm-text);
+}
+
+.stitch-header {
+  background: color-mix(in srgb, var(--shahm-surface) 88%, transparent);
+  border-bottom: 1px solid rgba(20, 107, 68, 0.06);
+  box-shadow: 0 1px 8px rgba(20, 107, 68, 0.04);
+  backdrop-filter: blur(18px);
+}
+
+.stitch-card {
+  border: 1px solid rgba(20, 107, 68, 0.06);
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 4px 20px -2px rgba(20, 107, 68, 0.06), 0 2px 6px -1px rgba(36, 51, 43, 0.04);
+}
+
+.stitch-soft-card {
+  border-radius: 1rem;
+  background: var(--shahm-surface-low);
+  border: 1px solid rgba(20, 107, 68, 0.08);
+}
+
+.stitch-primary-button {
+  min-height: 3.25rem;
+  border-radius: 999px;
+  background: var(--shahm-primary-container);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 6px 16px rgba(20, 107, 68, 0.2);
+}
+
+.stitch-primary-button:disabled {
+  opacity: 0.45;
+  box-shadow: none;
+}
+
+@media (max-width: 767px) {
+  body {
+    font-size: 16px;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    min-height: 2.75rem;
+  }
+}
