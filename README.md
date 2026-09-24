@@ -1,94 +1,82 @@
-# شَهْم (Shahm) — مراجعة وتجهيز للرفع على GitHub
+# شَهْم | Shahm
 
-هذا المستودع أُعيد تجميعه وتنظيمه من ملف "FINAL PROJECT DELIVERY" الذي رفعته، مع تصحيح
-الأخطاء البرمجية الحقيقية التي وُجدت أثناء المراجعة. **لم يُخترع أي كود جديد للأجزاء
-الحساسة (قاعدة البيانات، الدوال الطرفية)** — تلك الأجزاء غير موجودة فعلياً في الملف
-المصدر رغم أنها موصوفة ومُشار إليها بكثرة، وتفاصيلها موضحة في قسم "ناقص ويجب توفيره" أدناه.
+تطبيق ويب تقدّمي (PWA) بيربط **المستفيدين** اللي محتاجين مشوار أو عون على الطريق بـ**شهم** (متطوع) قريب منهم، بنطاق ٧ كيلومتر، وبحماية لبيانات الطرفين لحد ما الطلب يتقبل.
 
-## ✅ أخطاء حقيقية تم اكتشافها وإصلاحها في الكود المُرفق
+**Stack:** React 18 · TypeScript · Vite · Tailwind CSS (RTL) · Supabase (Postgres + RLS + Edge Functions) · Cloudflare Pages · Web Push
 
-1. **استيراد مكسور لملف غير موجود** — `StateViews.tsx` يستورد
-   `registerPushNotifications` من `./lib/push`، لكن `src/lib/push.ts` لم يكن موجوداً
-   إطلاقاً في التسليم الأصلي. هذا كان سيُفشل `npm run build` فوراً رغم أن التقرير
-   يدّعي نجاح البناء. **تم إنشاء الملف** (`src/lib/push.ts`) بمنطق اشتراك Web Push
-   قياسي، لكنه **يحتاج مراجعة مقابل مخطط جدول `push_subscriptions` الفعلي** بعد توفير
-   ملف المايجريشن.
+## المميزات
 
-2. **استيراد غير مستخدم (`ExistingOpenTripBanner`)** في `App.tsx` — المكوّن مستورد
-   لكنه لا يُستخدم في أي JSX. مع `tsconfig` الذي يفعّل `noUnusedLocals` (وهو ما
-   أضفته لأن `tsconfig.json` نفسه لم يكن موجوداً في التسليم)، هذا يفشل البناء.
-   تم حذف الاستيراد غير المستخدم من `App.tsx` (المكوّن نفسه ما زال موجوداً في
-   `StateViews.tsx` لاستخدامه لاحقاً إذا أضفتم دعم أكثر من طلب مفتوح).
+- **طلب مشوار فوري:** المستفيد يبعت طلب، أقرب شهم يقبله، وبعدها بس بيتكشف رقم التواصل. الطلب بينتهي تلقائيًا لو محدش قبله.
+- **عون على الطريق:** طلبات مساعدة (عطل، بنزين، إلخ) بتوصل للشهم القريب، مع تبادل بيانات التواصل بعد القبول.
+- **أدوار متعددة:** نفس الحساب ممكن يبقى شهم ومستفيد، ولكل دور بروفايل مستقل.
+- **إشعارات Web Push** وتثبيت كتطبيق على الموبايل، مع صفحة offline.
+- **لوحة إدارة** (`ops_admin` / `verification_admin` / `analytics_viewer`): مراجعة البلاغات، المستخدمين، التحليلات، ومراقبة الاستهلاك.
 
-3. **متغيرات ومستوردات غير مستخدمة في `AnalyticsDashboard.tsx`** — `PieChart`, `Pie`,
-   `Cell`, `PIE_COLORS`, ومتغير `tripStatusDistribution` كانت مُعرّفة ومحسوبة لكن لم
-   تُعرض في أي مكان بالواجهة (لا يوجد Pie Chart فعلي في JSX). كذلك حالة
-   `timeSeries` وبيانات `get_trips_timeseries` كانت تُجلب ولا تُعرض. تم حذف كل هذا
-   الكود الميت لتفادي فشل البناء تحت `noUnusedLocals`. **إذا كنتم تريدون فعلاً رسم
-   بياني للاتجاه الزمني على 14 يوم، أخبروني وسأضيفه فعلياً بدل حذفه.**
+## هيكل المشروع
 
-4. **نفس المشكلة في `UsageMonitor.tsx`** — `loading`/`setLoading` و`HardDrive`
-   و`Globe` كانت مستوردة/معرّفة ولم تُستخدم في الواجهة. تم حذفها.
+```
+src/
+  App.tsx              المنسّق: يجمع الـ hooks والـ handlers المشتركة ويوجّه للشاشات
+  screens/             الشاشات الكاملة (تحميل، دخول، إعداد الحساب، إيقاف، خطأ)
+  hooks/               useAuthProfile, useAuthFlow, useVolunteerFeed, useAssistance, useRoleSubscriptions
+  features/
+    requester/         واجهة المستفيد (الطلب الحالي + نموذج الطلب)
+    volunteer/         واجهة الشهم (المشاوير، عون الطريق، الطلبات القريبة)
+    admin/             شريط تبويبات الأدمن وصلاحيات الأدوار
+    shared/            الإرشادات وحسابي (مشتركة بين الدورين)
+  components/
+    admin/             لوحات الإدارة (تحليلات، أمان، مستخدمين، استهلاك)
+    common/            مكونات مشتركة (الهيدر، التنقل السفلي، خريطة الموقع، البلاغات...)
+  lib/
+    supabase.ts        عميل Supabase والأنواع
+    apiErrors.ts       translateApiError (ترجمة رسائل الـ RPC)
+    constants.ts, appTypes.ts   ثوابت وأنواع مشتركة
+    push.ts            تسجيل الإشعارات واستدعاء دوال الإشعار
+    phone.ts           تطبيع أرقام الهاتف لروابط واتساب
+  sw.ts                Service Worker (Workbox)
+supabase/
+  migrations/          مخطط قاعدة البيانات بالترتيب الزمني (المصدر الوحيد للحقيقة)
+  functions/           Edge Functions (create-trip-proxy, send-push, notify-*)
+design/stitch/         مرجع تصميم الشاشات (للاطلاع فقط، مش جزء من البناء)
+docs/                  وثائق المعمارية والتاريخ
+public/                أيقونة الـ PWA، offline.html، _headers، _redirects
+```
 
-5. **رابط واتساب غير موثوق لأرقام محلية** — الكود الأصلي كان يبني رابط
-   `wa.me/${phone.replace(/\+/g,'')}` مباشرة. لو تم تخزين رقم الهاتف بصيغة محلية
-   (مثال: `01012345678` بدون كود دولة)، فإن واتساب يرفض الرابط لأنه يشترط الصيغة
-   الدولية الكاملة بدون علامة `+` وبدون الصفر البادئ. تمت إضافة
-   `src/lib/phone.ts` (دالة `toWhatsAppNumber`) لتطبيع الرقم قبل بناء الرابط، مع
-   افتراض كود دولة افتراضي `+20` (عدّلوه إذا كان السياق الجغرافي مختلفاً).
+## التشغيل محليًا
 
-6. **منطق شرطي ميت/مربك لعرض واجهة المشرف** — في `App.tsx` كانت الشروط:
-   ```
-   profile?.role === 'requester' || (isAdmin && adminTab === 'trips' && profile?.role === 'requester')
-   profile?.role === 'volunteer' || (isAdmin && adminTab === 'trips' && profile?.role !== 'requester')
-   ```
-   الشرط الثاني في كل سطر ميت فعلياً (لأن دور المشرف لا يكون أبداً `'requester'`)،
-   لكنه يجعل القراءة مُضلِّلة. تم استبداله بمتغيرين واضحين
-   `showRequesterView` / `showVolunteerView` بنفس السلوك الفعلي (المشرف يرى واجهة
-   المتطوع دائماً في تبويبة "المشاوير الميدانية").
-
-## 🧩 ملفات أساسية كانت مفقودة تماماً من التسليم الأصلي وتم إنشاؤها كي يُبنى المشروع أصلاً
-
-هذه ليست "أخطاء" في كود مكتوب، بل غياب كامل لملفات لا يعمل بدونها أي مشروع Vite/React:
-
-- `index.html` — نقطة الدخول التي يحتاجها Vite.
-- `vite.config.ts`
-- `tsconfig.json`, `tsconfig.node.json`
-- `postcss.config.js` (مطلوب لتشغيل Tailwind فعلياً — كان `tailwind.config.js`
-  موجوداً بدونه، وهذا وحده كافٍ لعدم عمل التنسيقات).
-- `.gitignore` (كان مُشاراً إليه في التقرير كملف موجود، لكن محتواه غير مرفق).
-- `src/index.css` (يستورده `main.tsx` لكنه غير مرفق).
-- `src/lib/push.ts` (تفصيل في البند 1 أعلاه).
-- `src/lib/phone.ts` (جديد، لإصلاح رابط واتساب).
-
-## ❌ ناقص فعلاً ويجب عليك توفيره — لم أخترعه لأنه حرج أمنياً
-
-الملف المصدر يصف هذه الملفات بالتفصيل ويدّعي اجتيازها لاختبارات أمان صارمة، **لكن
-محتواها الفعلي غير موجود في المستند الذي رفعته**. لا يمكنني إعادة توليد سكريبت
-مايجريشن قاعدة بيانات بصلاحيات RLS ومنع تصعيد صلاحيات من الصفر بثقة — أي خطأ صغير
-هنا قد يفتح ثغرة أمنية حقيقية (تسريب هاتف/عنوان مريض)، فضّلت تركه فارغاً وتنبيهك
-بدل تخمين محتواه:
-
-- `supabase/migrations/20260917000000_shahm_master_production.sql` — **الأهم على
-  الإطلاق**: يحتوي الجداول، RLS، `prevent_profile_privilege_escalation`,
-  `get_my_role()`, `accept_trip()`, `reveal_contact()`, `create_trip()`, إلخ.
-- `supabase/functions/create-trip-proxy/` — الدالة الطرفية على Cloudflare التي
-  تلتقط `CF-Connecting-IP` وتستدعي `create_trip` بصلاحيات `service_role`.
-- `supabase/functions/send-push/` — إرسال إشعارات VAPID.
-- `supabase/functions/purge-verification-docs/` — حذف مستندات التوثيق بعد 30 يوماً.
-- `supabase/tests/database/01_security_and_rls.test.sql`
-- `scripts/test-race-condition.ts`
-
-أرسل لي محتوى هذه الملفات (كنص أو كرفع منفصل) وسأراجعها بنفس الدقة وأدمجها في
-هذا المستودع.
-
-## تشغيل المشروع محلياً
+المتطلبات: Node.js 20+ (الـ devcontainer بيستخدم 22).
 
 ```bash
 npm install
-cp .env.example .env   # ثم املأ القيم الفعلية
+cp .env.example .env      # واملأ القيم الحقيقية
 npm run dev
 ```
 
-`npm run build` سيفشل حالياً عند أول استدعاء فعلي لأي RPC غير موجود في قاعدة
-بيانات فارغة — هذا متوقع إلى أن يتم تطبيق ملف المايجريشن الكامل على مشروع Supabase.
+| الأمر | الغرض |
+| --- | --- |
+| `npm run dev` | سيرفر التطوير |
+| `npm run typecheck` | فحص TypeScript |
+| `npm run build` | بناء نسخة الإنتاج (`dist/`) |
+| `npm run preview` | معاينة نسخة الإنتاج |
+
+## قاعدة البيانات والدوال
+
+```bash
+npx supabase link --project-ref <YOUR_PROJECT_REF>
+npx supabase db push                      # تطبيق الـ migrations
+npx supabase functions deploy <function>  # نشر Edge Function
+```
+
+الـ secrets الخاصة بالدوال (`service_role`، مفتاح VAPID الخاص) بتتضبط في Supabase فقط ومش بتتكتب في الريبو أو `.env`. التفاصيل والـ conventions في [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## النشر
+
+الموقع بيتنشر على **Cloudflare Pages** (build command: `npm run build`، output: `dist`). ضبط الـ headers والـ SPA fallback في `public/_headers` و`public/_redirects`.
+
+قبل تشغيل تسجيل الدخول بجوجل على أي دومين (production أو preview)، ضيف الدومين في Supabase → Authentication → URL Configuration → Redirect URLs.
+
+## ملاحظات للمساهمين
+
+- كل تغيير في قاعدة البيانات يتعمل كـ migration جديدة بترقيم زمني، وما بنعدّلش migration اتطبقت.
+- نصوص الواجهة بالعربي المصري العامي، وما بنغيّرش نظام التصميم الموجود.
+- سجل التغييرات في [`CHANGELOG.md`](CHANGELOG.md).

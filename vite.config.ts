@@ -11,7 +11,7 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.ts',
       registerType: 'autoUpdate',
-      includeAssets: ['offline.html', 'favicon.ico', 'apple-touch-icon.png'],
+      includeAssets: ['offline.html'],
       manifest: {
         name: 'شَهْم - نقل الحالات العلاجية',
         short_name: 'شَهْم',
@@ -26,19 +26,19 @@ export default defineConfig({
         dir: 'rtl',
         icons: [
           {
-            src: 'pwa-512x512.png.png',
+            src: 'pwa-512x512.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: 'pwa-512x512.png.png',
+            src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: 'pwa-512x512.png.png',
+            src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable'
@@ -57,7 +57,6 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          react: ['react', 'react-dom'],
           supabase: ['@supabase/supabase-js'],
           charts: ['recharts'],
           icons: ['lucide-react'],
