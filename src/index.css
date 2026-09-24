@@ -122,6 +122,12 @@ input::placeholder {
   border: 1px solid rgba(20, 107, 68, 0.08);
 }
 
+.stitch-bottom-nav {
+  background: #fff;
+  border-top: 1px solid rgba(20, 107, 68, 0.12);
+  box-shadow: 0 -4px 16px rgba(20, 107, 68, 0.06);
+}
+
 .stitch-primary-button {
   min-height: 3.25rem;
   border-radius: 999px;

@@ -516,6 +516,7 @@ export const App: React.FC = () => {
         canInstall={canInstall}
         onInstall={install}
         onSignOut={handleSignOut}
+        showSignOut={Boolean(isAdmin)}
       >
         {isAdmin && (
           <AdminTabBar
@@ -620,6 +621,12 @@ export const App: React.FC = () => {
             onUpdateProfile={handleUpdateProfile}
             accountUpdateLoading={accountUpdateLoading}
           />
+        )}
+
+        {!isAdmin && activeAppTab !== 'account' && (
+          <button type="button" onClick={handleSignOut} className="w-full rounded-full bg-[#dbece0] py-3 text-center text-sm font-semibold text-[#005131] transition-colors hover:bg-[#cdded2]">
+            تسجيل الخروج
+          </button>
         )}
 
         <ReportModal

@@ -29,18 +29,15 @@ export const VolunteerActiveTripCard: React.FC<VolunteerActiveTripCardProps> = (
       </p>
     </div>
 
-    <div className="stitch-soft-card space-y-2 p-4 text-right text-sm">
-      <div><strong>نقطة الانطلاق:</strong> {data.origin_address}</div>
-      <div><strong>الوجهة:</strong> {data.destination_address}</div>
-      <div><strong>عدد الأفراد:</strong> {data.passenger_count ?? 1}</div>
-      {data.special_notes && <div><strong>ملاحظات:</strong> {data.special_notes}</div>}
-    </div>
-
-    <div className="stitch-soft-card space-y-3 p-4">
+    <div className="stitch-soft-card space-y-3 p-4 text-right">
       <div className="flex items-center gap-2 text-sm font-bold text-[#005131]"><Route className="h-5 w-5" />مسار المشوار ونقطة اللقاء</div>
       <div className="space-y-3 border-r-2 border-[#bfc9bf] pr-4 text-sm">
         <div className="relative"><span className="absolute -right-[23px] top-1 h-3 w-3 rounded-full bg-[#8df5b7] ring-4 ring-[#e6f8ec]" /><span className="block text-xs text-[#6f7a71]">نقطة الانطلاق</span><span className="block font-semibold text-[#101f17]">{data.origin_address}</span></div>
         <div className="relative"><span className="absolute -right-[23px] top-1 h-3 w-3 rounded-full bg-[#146b44] ring-4 ring-[#e6f8ec]" /><span className="block text-xs text-[#6f7a71]">الوجهة الطبية</span><span className="block font-semibold text-[#101f17]">{data.destination_address}</span></div>
+      </div>
+      <div className="space-y-2 border-t border-dashed border-[#bfc9bf] pt-3 text-sm">
+        <div><strong>عدد الأفراد:</strong> {data.passenger_count ?? 1}</div>
+        {data.special_notes && <div><strong>ملاحظات:</strong> {data.special_notes}</div>}
       </div>
     </div>
 

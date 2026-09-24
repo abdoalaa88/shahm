@@ -3,7 +3,8 @@ import type { PublicTrip, RequesterRelation } from '../../lib/supabase';
 import type { PlaceSelection } from '../../lib/appTypes';
 import { RequesterTripCard } from './RequesterTripCard';
 import { TripRequestForm } from './TripRequestForm';
-import { CheckCircle2, HeartHandshake } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
+import { QuoteCard } from '../../components/common/QuoteCard';
 
 type RequesterHomeProps = {
   reportSuccess: boolean;
@@ -55,15 +56,7 @@ export const RequesterHome: React.FC<RequesterHomeProps> = ({
   onCreateTrip,
 }) => (
   <>
-    <div className="stitch-soft-card flex items-start gap-3 p-4 shadow-sm">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#dbece0] text-[#005131]">
-        <HeartHandshake className="h-5 w-5" />
-      </div>
-      <div className="min-w-0">
-        <h2 className="text-base font-bold text-[#005131]">سلامتك أولاً، والناس للناس</h2>
-        <p className="mt-1 text-sm leading-7 text-[#3f4942]">مشاوير مجانية بالكامل، لمساندتك في الوصول لوجهتك بكرامة وأمان.</p>
-      </div>
-    </div>
+    <QuoteCard />
     {reportSuccess && (
       <div className="p-3 bg-[#E6F4ED] text-[#146B44] text-xs rounded-xl flex items-center gap-2">
         <CheckCircle2 className="w-4 h-4 shrink-0" />

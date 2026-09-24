@@ -2,6 +2,7 @@ import React from 'react';
 import { toWhatsAppNumber } from '../../lib/phone';
 import type { MyAssistanceRequest } from '../../lib/supabase';
 import type { AssistanceRole } from '../../lib/appTypes';
+import { PendingLoader } from '../../components/common/PendingLoader';
 import { Phone, MessageSquare, Loader2, Handshake } from 'lucide-react';
 
 type AssistanceRequestTabProps = {
@@ -32,28 +33,23 @@ export const AssistanceRequestTab: React.FC<AssistanceRequestTabProps> = ({
   onAssistanceTypeChange,
   onAssistanceDescriptionChange,
   onCreateAssistanceRequest,
-}) => (
+}) => myAssistanceRequest?.status === 'pending' ? (
+  <section className="stitch-card flex min-h-[24rem] flex-col items-center justify-center gap-6 p-5">
+    <PendingLoader />
+    <button
+      type="button"
+      onClick={() => onCancelAssistance(myAssistanceRequest.assistance_id)}
+      disabled={assistanceActionLoading}
+      className="w-full rounded-full bg-[#dbece0] py-3 text-center text-sm font-semibold text-[#005131] transition-colors hover:bg-[#cdded2]"
+    >
+      إلغاء الطلب
+    </button>
+  </section>
+) : (
   <section className="stitch-card space-y-4 p-5">
     <div className="stitch-soft-card flex items-start gap-3 p-4"><Handshake className="mt-1 h-5 w-5 shrink-0 text-[#005131]" /><div><h2 className="font-bold text-[#005131]">طلب عون</h2><p className="mt-1 text-sm leading-7 text-[#3f4942]">لو عربيتك عطلت أو عندك مشكلة على الطريق، اطلب عونًا من الشهم القريب منك.</p></div></div>
 
-    {myAssistanceRequest?.status === 'pending' ? (
-      <div className="space-y-3 text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#FBEFDC] text-[#8F5A0A]">
-          <Loader2 className="h-6 w-6 animate-spin" />
-        </div>
-        <h3 className="text-base font-bold text-[#101f17]">طلبك متبعت، وبنستنى شهم يقبله</h3>
-        <p className="text-sm leading-7 text-[#3f4942]">{myAssistanceRequest.description}</p>
-        <p className="text-xs text-[#6B7280]">هنبلغك أول ما حد يقبل طلبك.</p>
-        <button
-          type="button"
-          onClick={() => onCancelAssistance(myAssistanceRequest.assistance_id)}
-          disabled={assistanceActionLoading}
-          className="w-full rounded-full bg-[#dbece0] py-3 text-sm font-semibold text-[#005131] transition-colors hover:bg-[#cdded2]"
-        >
-          إلغاء الطلب
-        </button>
-      </div>
-    ) : myAssistanceRequest?.status === 'accepted' ? (
+    {myAssistanceRequest?.status === 'accepted' ? (
       <div className="space-y-3">
         <div className="rounded-xl bg-[#E6F4ED] p-3 text-center text-sm font-semibold text-[#146B44]">
           شهم قبل طلب العون بتاعك، وهيتواصل معاك دلوقتي

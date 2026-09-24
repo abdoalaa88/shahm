@@ -8,7 +8,7 @@ import { LocationPrompt } from './LocationPrompt';
 import { NearbyAssistanceList } from './NearbyAssistanceList';
 import { PendingTripsList } from './PendingTripsList';
 import { TripDetailsSheet } from './TripDetailsSheet';
-import { HeartHandshake } from 'lucide-react';
+import { QuoteCard } from '../../components/common/QuoteCard';
 
 type VolunteerHomeProps = {
   role: UserRole | undefined;
@@ -62,15 +62,7 @@ export const VolunteerHome: React.FC<VolunteerHomeProps> = ({
   onCloseTripDetails,
 }) => (
   <>
-    <div className="stitch-soft-card flex items-start gap-3 p-4 shadow-sm">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#146b44] text-white">
-        <HeartHandshake className="h-5 w-5" />
-      </div>
-      <div className="min-w-0">
-        <h2 className="text-base font-bold text-[#005131]">أهلاً بك يا بطل الخير</h2>
-        <p className="mt-1 text-sm leading-7 text-[#3f4942]">مشوارك البسيط يصنع فارقاً عظيماً في رحلة علاج إنسان يحتاجك اليوم.</p>
-      </div>
-    </div>
+    <QuoteCard />
     {raceConditionDetected && (
       <RaceConditionToast onClose={onDismissRaceCondition} />
     )}

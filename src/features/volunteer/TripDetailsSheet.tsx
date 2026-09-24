@@ -1,6 +1,7 @@
 import React from 'react';
 import type { NearbyTrip } from '../../lib/supabase';
-import { Loader2, Clock, ShieldCheck, Navigation, HeartPulse, HeartHandshake, LockKeyhole, Route, Handshake } from 'lucide-react';
+import { QuoteCard } from '../../components/common/QuoteCard';
+import { Loader2, Clock, ShieldCheck, Navigation, HeartHandshake, LockKeyhole, Route, Handshake } from 'lucide-react';
 
 type TripDetailsSheetProps = {
   trip: NearbyTrip;
@@ -20,11 +21,12 @@ export const TripDetailsSheet: React.FC<TripDetailsSheetProps> = ({ trip, accept
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-3 gap-2">
+      <div className="mt-3 grid grid-cols-2 gap-2">
         <div className="stitch-card p-3 text-center"><Navigation className="mx-auto h-5 w-5 text-[#005131]" /><span className="mt-1 block text-[11px] text-[#3f4942]">المسافة إليك</span><strong className="block text-sm text-[#101f17]">{trip.distance_km ?? '--'} كم</strong><span className="text-[11px] text-[#006d41]">نطاق معتمد</span></div>
         <div className="stitch-card p-3 text-center"><Clock className="mx-auto h-5 w-5 text-[#006d41]" /><span className="mt-1 block text-[11px] text-[#3f4942]">وقت الوصول</span><strong className="block text-sm text-[#101f17]">قريبًا</strong><span className="text-[11px] text-[#3f4942]">بالمركبة</span></div>
-        <div className="stitch-card p-3 text-center"><HeartPulse className="mx-auto h-5 w-5 text-[#8f4c00]" /><span className="mt-1 block text-[11px] text-[#3f4942]">نوع الطلب</span><strong className="block text-sm text-[#8f4c00]">فوري</strong><span className="text-[11px] text-[#3f4942]">رحلة</span></div>
       </div>
+
+      <div className="mt-3"><QuoteCard /></div>
 
       <div className="stitch-card mt-3 space-y-4 p-4">
         <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><Route className="h-5 w-5 text-[#005131]" /><h3 className="font-bold text-[#101f17]">مسار المشوار التقديري</h3></div><span className="rounded-full bg-[#dbece0] px-2 py-1 text-[11px] text-[#3f4942]">خصوصية محفوظة</span></div>
