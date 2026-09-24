@@ -4,7 +4,7 @@ import { AlertTriangle, X, Loader2 } from 'lucide-react';
 
 interface ReportModalProps {
   tripId?: string;
-  reportedProfileId?: string;
+  reportedProfileId?: string | null;
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;

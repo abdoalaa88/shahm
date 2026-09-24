@@ -36,21 +36,18 @@ self.addEventListener('push', (event) => {
   if (!event.data) return;
 
   const data = event.data.json() as { title?: string; body?: string; url?: string; tag?: string };
-  event.waitUntil(
-    self.registration.showNotification(data.title || 'شَهْم', {
-      body: data.body || 'إشعار جديد من منصة شَهْم',
-      dir: 'rtl',
-      lang: 'ar',
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      // Explicit vibration pattern (ms): buzz, pause, buzz — some Android/
-      // Chrome notification channels don't vibrate by default without this.
-      vibrate: [200, 100, 200],
-      tag: data.tag || 'shahm-trip',
-      renotify: true,
-      data: { url: data.url || '/' },
-    })
-  );
+  const notificationOptions = {
+    body: data.body || 'إشعار جديد من منصة شَهْم',
+    dir: 'rtl',
+    lang: 'ar',
+    icon: '/shahm-app-icon-192-20260924.png',
+    badge: '/shahm-app-icon-192-20260924.png',
+    vibrate: [200, 100, 200],
+    tag: data.tag || 'shahm-trip',
+    renotify: true,
+    data: { url: data.url || '/' },
+  } as NotificationOptions & { vibrate: number[] };
+  event.waitUntil(self.registration.showNotification(data.title || 'شَهْم', notificationOptions));
 });
 
 self.addEventListener('notificationclick', (event) => {

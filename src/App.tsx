@@ -20,6 +20,7 @@ import { toWhatsAppNumber } from './lib/phone';
 import { useInstallPrompt } from './lib/useInstallPrompt';
 import { registerPushNotifications } from './lib/push';
 import {
+  HeartHandshake,
   Phone,
   MessageSquare,
   Map,
@@ -212,6 +213,22 @@ const hasCompleteVolunteerVehicleDetails = (candidate: any) =>
   typeof candidate?.vehicle_plate_number === 'string' && candidate.vehicle_plate_number.trim().length >= 3 &&
   candidate?.vehicle_data_responsibility_ack === true;
 
+const installDismissedStorageKey = 'shahm.install-dismissed.v1';
+const readBooleanPreference = (key: string) => {
+  try {
+    return window.localStorage.getItem(key) === 'true';
+  } catch {
+    return false;
+  }
+};
+const writeBooleanPreference = (key: string) => {
+  try {
+    window.localStorage.setItem(key, 'true');
+  } catch {
+    // The UI continues to work for browsers that block local storage.
+  }
+};
+
 export const App: React.FC = () => {
   const [sessionUser, setSessionUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -223,6 +240,8 @@ export const App: React.FC = () => {
 
   const [firstName, setFirstName] = useState('');
   const [phone, setPhone] = useState('');
+  const [patientAge, setPatientAge] = useState('');
+  const [patientCondition, setPatientCondition] = useState('');
 
   const [vehicleType, setVehicleType] = useState('');
   const [vehicleColor, setVehicleColor] = useState('');
@@ -302,7 +321,9 @@ export const App: React.FC = () => {
   const [loadingNearbyTrips, setLoadingNearbyTrips] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [reportSuccess, setReportSuccess] = useState(false);
-  const [installDismissed, setInstallDismissed] = useState(false);
+  const [installDismissed, setInstallDismissed] = useState(() =>
+    readBooleanPreference(installDismissedStorageKey),
+  );
   const [installCompleted, setInstallCompleted] = useState(false);
   const [installMessage, setInstallMessage] = useState<string | null>(null);
 
@@ -310,7 +331,6 @@ export const App: React.FC = () => {
     canInstall,
     showManualInstructions,
     showInstallPrompt,
-    isInstalled,
     install,
   } = useInstallPrompt();
 
@@ -321,6 +341,7 @@ export const App: React.FC = () => {
     if (installed) {
       setInstallCompleted(true);
       setInstallMessage(null);
+      writeBooleanPreference(installDismissedStorageKey);
       return;
     }
     setInstallMessage('لم يتم التثبيت. يمكنك المحاولة لاحقاً من قائمة المتصفح.');
@@ -329,10 +350,8 @@ export const App: React.FC = () => {
   const handleDismissInstall = () => {
     setInstallDismissed(true);
     setInstallMessage(null);
+    writeBooleanPreference(installDismissedStorageKey);
   };
-
-  const showRegistrationPrompt =
-    installDismissed && !installCompleted && !isInstalled && !sessionUser && !roleSelection;
 
   const installNotice =
     showInstallPrompt && !installDismissed && !installCompleted ? (
@@ -449,6 +468,12 @@ export const App: React.FC = () => {
                 phone_number: pendingProfile.phone,
                 role: pendingProfile.role,
                 verification_status: 'unverified',
+                ...(pendingProfile.role === 'requester'
+                  ? {
+                      patient_age: pendingProfile.patientAge === '' ? null : Number(pendingProfile.patientAge),
+                      patient_condition: pendingProfile.patientCondition?.trim() || null,
+                    }
+                  : {}),
                 ...(isVolunteer
                   ? {
                       vehicle_type: pendingProfile.vehicleType.trim(),
@@ -929,6 +954,18 @@ export const App: React.FC = () => {
       return;
     }
 
+    if (roleSelection === 'requester') {
+      const parsedPatientAge = Number(patientAge);
+      if (!Number.isInteger(parsedPatientAge) || parsedPatientAge < 0 || parsedPatientAge > 120) {
+        setErrorMessage('أدخل عمر المريض من 0 إلى 120 سنة.');
+        return;
+      }
+      if (patientCondition.trim().length < 2 || patientCondition.trim().length > 500) {
+        setErrorMessage('اكتب الحالة الصحية للمريض بوضوح (من حرفين إلى 500 حرف).');
+        return;
+      }
+    }
+
     if (roleSelection === 'volunteer') {
       if (
         vehicleType.trim().length < 2 || vehicleType.trim().length > 80 ||
@@ -950,6 +987,12 @@ export const App: React.FC = () => {
         firstName: firstName.trim(),
         phone: phone.trim(),
         role: roleSelection,
+        ...(roleSelection === 'requester'
+          ? {
+              patientAge,
+              patientCondition: patientCondition.trim(),
+            }
+          : {}),
         ...(roleSelection === 'volunteer'
           ? {
               vehicleType: vehicleType.trim(),
@@ -1225,41 +1268,45 @@ export const App: React.FC = () => {
 
   if (!sessionUser && !roleSelection) {
     return (
-      <div className="min-h-screen bg-[#F7F8F9] flex flex-col justify-center items-center p-4">
-        <div className="w-full max-w-sm bg-white p-6 rounded-2xl shadow-sm border border-[#8A949E]/20 text-center">
-          <div className="mb-5 flex flex-col items-center">
-            <img aria-hidden="true" alt="" src="/shahm-logo-mark-20260924.png" className="mb-2 h-14 w-14 object-contain" />
-            <h1 className="text-2xl font-bold text-[#005131]">شَهْم</h1>
+      <div className="shahm-auth-page">
+        <header className="shahm-public-header" aria-label="شَهْم">
+          <div className="shahm-brand-lockup">
+            <img aria-hidden="true" alt="" src="/shahm-logo-mark-20260924.png" />
+            <span>شَهْم</span>
           </div>
-          <div className="space-y-3">
-            <button
-              onClick={() => setRoleSelection('volunteer')}
-              className="w-full h-[52px] bg-[#146B44] active:bg-[#0F5636] text-white font-semibold rounded-xl text-base transition-colors flex items-center justify-center gap-2"
-            >
-              عندي سيارة، عايز أساعد
-            </button>
+          <span className="shahm-public-badge"><ShieldCheck aria-hidden="true" /> مجتمع آمن ومساند</span>
+        </header>
 
-            <button
-              onClick={() => setRoleSelection('requester')}
-              className="w-full h-[52px] bg-white border-2 border-[#146B44] text-[#146B44] font-semibold rounded-xl text-base hover:bg-[#E6F4ED] transition-colors flex items-center justify-center gap-2"
-            >
-              محتاج مساعدة على الطريق
-            </button>
-          </div>
-        </div>
+        <main className="shahm-welcome">
+          <section className="welcome-hero">
+            <div className="welcome-mark">
+              <img aria-hidden="true" alt="" src="/shahm-logo-mark-20260924.png" />
+            </div>
+            <span className="welcome-kicker">خير الناس أنفعهم للناس</span>
+            <h1>أهلاً بك في شَهْم</h1>
+            <p className="welcome-lead">الناس للناس</p>
+            <p className="welcome-description">منصة مجتمعية لمساعدة المصابين بأمراض مزمنة والأكثر احتياجاً</p>
 
-        {showRegistrationPrompt && (
-          <button
-            type="button"
-            onClick={() => {
-              setErrorMessage(null);
-              setRoleSelection('requester');
-            }}
-            className="mt-4 min-h-12 w-full max-w-sm rounded-xl bg-[#146B44] px-5 text-center text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#0F5636]"
-          >
-            ابدأ التسجيل كصاحب طلب
-          </button>
-        )}
+            <div className="welcome-actions" aria-label="اختر طريقة استخدام شَهْم">
+              <button onClick={() => setRoleSelection('requester')} className="welcome-role-card">
+                <span className="welcome-role-icon"><LocateFixed aria-hidden="true" /></span>
+                <span className="welcome-role-copy"><strong>احتاج مساعدة</strong><small>اطلب مساندة من شهم قريب</small></span>
+                <span className="welcome-role-arrow" aria-hidden="true">←</span>
+              </button>
+              <button onClick={() => setRoleSelection('volunteer')} className="welcome-role-card">
+                <span className="welcome-role-icon"><CarFront aria-hidden="true" /></span>
+                <span className="welcome-role-copy"><strong>أرغب بالمساعدة</strong><small>كن شهمًا وساعد غيرك</small></span>
+                <span className="welcome-role-arrow" aria-hidden="true">←</span>
+              </button>
+            </div>
+            <p className="welcome-privacy"><ShieldCheck aria-hidden="true" /> بياناتك محفوظة وتُشارك عند الحاجة فقط</p>
+          </section>
+
+          <blockquote className="welcome-community">
+            <span className="community-ornament" aria-hidden="true"><HeartHandshake /></span>
+            <p>«من سار بين الناس جابراً للخواطر أدركه الله في جوف المخاطر.»</p>
+          </blockquote>
+        </main>
 
         {configurationNotice}
         {installNotice}
@@ -1269,20 +1316,24 @@ export const App: React.FC = () => {
 
   if (!sessionUser) {
     return (
-      <div className="min-h-screen bg-[#F7F8F9] flex flex-col justify-center items-center p-4">
-        <div className="w-full max-w-sm bg-white p-6 rounded-2xl shadow-sm border border-[#8A949E]/20">
+      <div className="shahm-auth-page shahm-signup-page min-h-screen bg-[#F7F8F9] flex flex-col justify-center items-center p-4">
+        <div className="shahm-auth-card shahm-form-card w-full max-w-sm bg-white p-6 rounded-2xl shadow-sm border border-[#8A949E]/20">
+          <div className="signup-brand-lockup">
+            <img aria-hidden="true" alt="" src="/shahm-logo-mark-20260924.png" />
+            <span>شَهْم</span>
+          </div>
           <button
             onClick={() => setRoleSelection(null)}
             className="text-xs text-[#6B7280] mb-4 hover:text-[#1F2430]"
           >
-            ← العودة لاختيار الدور
+            ← العودة للرئيسية
           </button>
 
           <h2 className="text-xl font-bold text-[#1F2430] mb-2">
-            تسجيل البيانات
+            تسجيل طالب الرحلة
           </h2>
-          <p className="text-xs text-[#6B7280] mb-6">
-            الاسم ورقم الجوال للتواصل بعد قبول طلب المساعدة
+          <p className="text-sm leading-6 text-[#6B7280] mb-6">
+            أدخل بياناتك للمتابعة وطلب المساعدة من شهم قريب.
           </p>
 
           {errorMessage && (
@@ -1326,6 +1377,44 @@ export const App: React.FC = () => {
                 className="w-full h-[52px] px-4 bg-white border border-[#8A949E] rounded-xl text-base text-[#1F2430] focus:border-[#2F6FED] focus:outline-none"
               />
             </div>
+
+            {roleSelection === 'requester' && (
+              <section className="patient-registration-fields" aria-labelledby="patient-registration-title">
+                <div>
+                  <h3 id="patient-registration-title" className="text-sm font-bold text-[#005131]">بيانات المريض</h3>
+                  <p className="mt-1 text-xs leading-5 text-[#53645a]">تُستخدم لمساعدة الشهم على الاستعداد للرحلة.</p>
+                </div>
+                <label className="block text-sm font-semibold text-[#1F2430]">
+                  عمر المريض
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={120}
+                    step={1}
+                    required
+                    dir="ltr"
+                    value={patientAge}
+                    onChange={(event) => setPatientAge(event.target.value)}
+                    placeholder="العمر بالسنوات"
+                    className="mt-1 h-[48px] w-full rounded-xl border border-[#8A949E] bg-white px-3 text-sm font-normal"
+                  />
+                </label>
+                <label className="block text-sm font-semibold text-[#1F2430]">
+                  الحالة الصحية للمريض
+                  <textarea
+                    required
+                    minLength={2}
+                    maxLength={500}
+                    rows={3}
+                    value={patientCondition}
+                    onChange={(event) => setPatientCondition(event.target.value)}
+                    placeholder="اكتب الحالة أو ما يحتاج الشهم لمعرفته"
+                    className="mt-1 w-full resize-y rounded-xl border border-[#8A949E] bg-white px-3 py-3 text-sm font-normal"
+                  />
+                </label>
+              </section>
+            )}
 
             {roleSelection === 'volunteer' && (
               <div className="space-y-3 rounded-2xl border border-[#146B44]/15 bg-[#F7FBF8] p-4">
@@ -1440,11 +1529,11 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#F7F8F9] flex flex-col text-right">
+    <div className="shahm-app-shell min-h-screen bg-[#F7F8F9] flex flex-col text-right">
       {configurationNotice}
       {installNotice}
 
-      <header className="sticky top-0 z-40 border-b border-[#8A949E]/20 bg-white px-4 py-3">
+      <header className="shahm-app-header sticky top-0 z-40 border-b border-[#8A949E]/20 bg-white px-4 py-3">
         <div className="mx-auto flex min-h-12 max-w-2xl items-center justify-center gap-3">
           <img
             aria-hidden="true"
@@ -1456,7 +1545,7 @@ export const App: React.FC = () => {
         </div>
       </header>
 
-      <main id="main-content" className="flex-1 max-w-2xl w-full mx-auto bg-[#F0FBF4] px-4 pt-4 pb-[calc(7rem+env(safe-area-inset-bottom))] space-y-4">
+      <main id="main-content" className="shahm-app-main flex-1 max-w-2xl w-full mx-auto bg-[#F7F8F9] px-4 pt-4 pb-[calc(7rem+env(safe-area-inset-bottom))] space-y-4">
         <section className="-mx-4 border-b border-[#D8EEE1] bg-[#F0FBF4] px-5 pb-7 pt-6 text-center">
           <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full border-[7px] border-[#DDEFE5] bg-white shadow-sm">
             <img aria-hidden="true" alt="" src="/shahm-logo-mark-20260924.png" className="h-14 w-14 object-contain" />
@@ -1466,10 +1555,8 @@ export const App: React.FC = () => {
           <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-[#65736B]">نساند بعضنا ونوصل المساعدة لمن يحتاجها، خطوة بخطوة.</p>
         </section>
 
-        <blockquote className="-mx-4 border-b border-[#D8EEE1] bg-[#E8F7EE] px-5 py-6 text-center text-base font-semibold leading-8 text-[#005131]">
-          {showRequesterView
-            ? '«مجتمع يساند بعضه في الطريق، بمحبة وخصوصية وأمان.»'
-            : '«من سار بين الناس جابراً للخواطر أدركه الله في جوف المخاطر.»'}
+        <blockquote className="rounded-3xl border border-[#D8EEE1] bg-[#E8F7EE] px-5 py-6 text-center text-base font-semibold leading-8 text-[#005131] shadow-sm">
+          «من سار بين الناس جابراً للخواطر أدركه الله في جوف المخاطر.»
         </blockquote>
         {isAdmin && (
           <nav aria-label="أقسام الإدارة" className="flex gap-2 overflow-x-auto rounded-2xl border border-[#8A949E]/20 bg-white p-2">
@@ -1503,7 +1590,7 @@ export const App: React.FC = () => {
             )}
 
             {activeRequesterTrip ? (
-              <div className="bg-white p-6 rounded-2xl border border-[#8A949E]/20 text-center space-y-4">
+              <div className="shahm-trip-card bg-white p-6 rounded-2xl border border-[#8A949E]/20 text-center space-y-4">
                 {activeRequesterTrip.status === 'pending' ? (
                   <>
                     <div className="flex h-24 w-24 mx-auto items-center justify-center rounded-full bg-[#E6F4ED]">
@@ -1634,7 +1721,7 @@ export const App: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className="bg-white p-6 rounded-2xl border border-[#8A949E]/20 space-y-4">
+              <div className="shahm-form-card bg-white p-6 rounded-2xl border border-[#8A949E]/20 space-y-4">
                 <h2 className="text-lg font-bold text-[#1F2430]">
                   طلب مساعدة عالطريق
                 </h2>
@@ -1773,7 +1860,7 @@ export const App: React.FC = () => {
             )}
 
             {activeVolunteerTripData ? (
-              <div className="bg-white p-6 rounded-2xl border border-[#8A949E]/20 shadow-sm space-y-4">
+              <div className="shahm-trip-card bg-white p-6 rounded-2xl border border-[#8A949E]/20 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-xs bg-[#E6F4ED] text-[#146B44] px-3 py-1 rounded-full font-semibold">
                     تم قبول طلب المساعدة بنجاح
@@ -1991,7 +2078,7 @@ export const App: React.FC = () => {
                     <div
                       key={trip.id}
                       onClick={() => setSelectedTripDetails(trip)}
-                      className="bg-[#FFFFFF] p-4 rounded-2xl border border-[#8A949E]/20 shadow-sm cursor-pointer hover:border-[#146B44] transition-all space-y-2"
+                      className="shahm-request-card bg-[#FFFFFF] p-4 rounded-2xl border border-[#8A949E]/20 shadow-sm cursor-pointer hover:border-[#146B44] transition-all space-y-2"
                     >
                       <div className="flex items-center justify-between text-xs text-[#6B7280]">
                         <span className="bg-[#FBEFDC] text-[#8F5A0A] px-2 py-0.5 rounded-md font-medium">
@@ -2209,8 +2296,9 @@ export const App: React.FC = () => {
 
         {reportModalOpen && activeRequesterTrip && (
           <ReportModal
+            isOpen={reportModalOpen}
             tripId={activeRequesterTrip.id}
-            reportedUserId={activeRequesterTrip.volunteer_id}
+            reportedProfileId={activeRequesterTrip.volunteer_id}
             onClose={() => setReportModalOpen(false)}
             onSuccess={() => {
               setReportModalOpen(false);
@@ -2221,8 +2309,9 @@ export const App: React.FC = () => {
 
         {reportModalOpen && activeVolunteerTripData && (
           <ReportModal
+            isOpen={reportModalOpen}
             tripId={activeVolunteerTripData.trip_id}
-            reportedUserId={null}
+            reportedProfileId={null}
             onClose={() => setReportModalOpen(false)}
             onSuccess={() => {
               setReportModalOpen(false);
@@ -2282,3 +2371,6 @@ export const App: React.FC = () => {
 };
 
 export default App;
+
+
+

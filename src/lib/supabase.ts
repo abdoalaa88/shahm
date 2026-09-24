@@ -77,6 +77,7 @@ export interface ContactCardData {
   destination_address: string;
   destination_lat: number;
   destination_lng: number;
+  distance_km: number | null;
   problem_type: string;
   people_count: number;
   request_notes: string;
