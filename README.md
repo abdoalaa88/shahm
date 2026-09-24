@@ -24,7 +24,32 @@
    - supabase/migrations/20260917000001_create_trip_proxy_rpc.sql
    - supabase/migrations/20260917000003_scheduling_distance_patient.sql
    - supabase/migrations/20260917000004_volunteer_contact.sql
+   - supabase/migrations/20260917000005_accept_trip_distance_and_profile_guard.sql
    - supabase/migrations/20260917000006_volunteer_locations_for_push.sql
+   - supabase/migrations/20260919000001_resolve_report.sql
+   - supabase/migrations/20260920000000_trip_accept_notifications.sql
+   - supabase/migrations/20260920000001_reveal_contact_requester_id.sql
+   - supabase/migrations/20260920000002_phase6_fixes.sql
+   - supabase/migrations/20260920000003_hide_patient_details_pre_acceptance.sql
+   - supabase/migrations/20260920000004_scope_pending_trips_policy_to_nearby.sql
+   - supabase/migrations/20260921092340_exclude_expired_trips_from_nearby.sql
+   - supabase/migrations/20260921213650_multi_role_profiles_same_email.sql
+   - supabase/migrations/20260921213714_restore_missing_analytics_functions.sql
+   - supabase/migrations/20260921213813_fix_grants_and_drop_stale_overload.sql
+   - supabase/migrations/20260921213843_attach_missing_profile_privilege_escalation_trigger.sql
+   - supabase/migrations/20260921222254_revoke_stale_update_grant_on_reports.sql
+   - supabase/migrations/20260922105808_fix_patient_age_smallint_return_type_mismatch.sql
+   - supabase/migrations/20260923000000_fix_runtime_profile_and_trip_contracts.sql
+   - supabase/migrations/20260923000001_limit_trip_distance_to_7km.sql
+   - supabase/migrations/20260923000002_beneficiary_trip_and_assistance_requests.sql
+   - supabase/migrations/20260923000003_instant_ride_expiration.sql
+   - supabase/migrations/20260923000004_assistance_location_matching.sql
+   - supabase/migrations/20260923000005_assistance_contact_exchange.sql
+   - supabase/migrations/20260923000006_add_expired_trip_status.sql
+   - supabase/migrations/20260923000007_expire_stale_trips.sql
+   - supabase/migrations/20260924000000_fix_expired_status_constraint.sql
+   - supabase/migrations/20260924000001_volunteer_cancel_accepted_trip.sql
+   - supabase/migrations/20260924000002_assistance_expiry_and_cancel.sql
    - supabase/migrations/20260924071143_volunteer_vehicle_details.sql
    - supabase/migrations/20260924080000_roadside_assistance_details.sql
 4. انشر الوظائف المطلوبة، وبضمنها create-trip-proxy وsend-push.
