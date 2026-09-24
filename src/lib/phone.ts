@@ -1,9 +1,15 @@
 /**
- * Phone-number helpers.
+ * أدوات تطبيع أرقام الهاتف.
  *
- * wa.me links need the full international format: no "+" and no leading
- * local zero. Numbers are always normalised before building a link; when a
- * number carries no country code, DEFAULT_COUNTRY_CODE (+20, Egypt) is assumed.
+ * ملاحظة إصلاح: كان الكود الأصلي يستخدم
+ * `phone.replace(/\+/g, '')` مباشرة كرقم واتساب (wa.me/<phone>).
+ * لو تم تخزين الرقم بصيغة محلية (مثال: 01012345678 بدون كود دولة)،
+ * فإن رابط wa.me يصبح غير صالح لأن واتساب يشترط الصيغة الدولية الكاملة
+ * بدون علامة + وبدون صفر بداية الرقم المحلي.
+ *
+ * الحل: تطبيع الرقم دائماً إلى صيغة دولية قبل إنشاء رابط wa.me،
+ * مع افتراض كود الدولة الافتراضي +20 (مصر) حين لا يحتوي الرقم
+ * على كود دولة أصلاً. عدّل DEFAULT_COUNTRY_CODE إذا اختلف السياق.
  */
 const DEFAULT_COUNTRY_CODE = '20';
 

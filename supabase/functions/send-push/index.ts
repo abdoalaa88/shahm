@@ -1,159 +1,143 @@
-import "npm:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.116.0";
-import webpush from "npm:web-push@3.6.7";
+// Sends Web Push notifications (VAPID) to volunteers' registered devices
+// (public.push_subscriptions). Not publicly callable: only a caller holding
+// the service-role key may invoke it — it's meant to be triggered from
+// create-trip-proxy right after a trip is successfully created, never
+// directly from the browser.
+// New-trip notifications go only to active volunteers near the pick-up point.
 
 type PushPayload = {
+  user_ids?: string[];
+  trip_id?: string;
   title: string;
   body: string;
-  url: string;
-  icon: string;
+  url?: string;
+  tag?: string;
 };
 
-type SendPushRequest = {
-  trip_id?: string;
-  assistance_id?: string;
-  user_id?: string;
-  payload?: Partial<PushPayload>;
+type StoredSubscription = {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
 };
 
-const json = (status: number, body: Record<string, unknown>) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
+// Notification targeting for new trips (see get_nearby_volunteer_ids).
+const NEARBY_RADIUS_KM = 20;
+const LOCATION_MAX_AGE_MINUTES = 180;
 
-const isUuid = (value: unknown): value is string =>
-  typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-
-const getServiceClient = () => {
-  const url = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!url || !serviceRoleKey) throw new Error("Supabase function environment is incomplete");
-
-  return createClient(url, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-};
-
-const isTrustedCaller = (request: Request) => {
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const authorization = request.headers.get("authorization");
-  return Boolean(serviceRoleKey && authorization === `Bearer ${serviceRoleKey}`);
-};
-
-const defaultPayload = (payload: Partial<PushPayload> | undefined): PushPayload => ({
-  title: payload?.title || "شَهْم",
-  body: payload?.body || "لديك إشعار جديد من منصة شَهْم",
-  url: payload?.url || "/",
-  icon: payload?.icon || "/icons/icon-192.png",
-});
-
-const sendToUsers = async (
-  serviceClient: ReturnType<typeof getServiceClient>,
-  userIds: string[],
-  payload: PushPayload,
-) => {
-  const uniqueUserIds = Array.from(new Set(userIds));
-  if (uniqueUserIds.length === 0) return { attempted: 0, sent: 0, stale: 0 };
-
-  const { data: subscriptions, error } = await serviceClient
-    .from("push_subscriptions")
-    .select("user_id, subscription")
-    .in("user_id", uniqueUserIds);
-  if (error) throw new Error(`Could not load push subscriptions: ${error.message}`);
-
-  let sent = 0;
-  let stale = 0;
-  for (const row of subscriptions ?? []) {
-    try {
-      await webpush.sendNotification(row.subscription, JSON.stringify(payload));
-      sent += 1;
-    } catch (error) {
-      const statusCode = (error as { statusCode?: number }).statusCode;
-      if (statusCode === 404 || statusCode === 410) {
-        const { error: deleteError } = await serviceClient
-          .from("push_subscriptions")
-          .delete()
-          .eq("user_id", row.user_id);
-        if (deleteError) {
-          console.error("Could not remove stale push subscription", {
-            userId: row.user_id,
-            code: deleteError.code,
-          });
-        } else {
-          stale += 1;
-        }
-      } else {
-        console.error("Push delivery failed", {
-          userId: row.user_id,
-          statusCode,
-          message: error instanceof Error ? error.message : "unknown error",
-        });
-      }
-    }
-  }
-
-  return { attempted: subscriptions?.length ?? 0, sent, stale };
-};
+const jsonResponse = (status: number, body: Record<string, unknown>) =>
+  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
 Deno.serve(async (request) => {
-  if (request.method !== "POST") return json(405, { error: "Method not allowed" });
-  if (!isTrustedCaller(request)) return json(401, { error: "Internal caller required" });
-
-  const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
-  const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
-  const vapidSubject = Deno.env.get("VAPID_SUBJECT") || "mailto:admin@shahm.app";
-  if (!vapidPublicKey || !vapidPrivateKey) {
-    console.error("VAPID configuration is incomplete");
-    return json(500, { error: "Push service is not configured" });
+  if (request.method !== 'POST') {
+    return jsonResponse(405, { error: 'Method not allowed' });
   }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const vapidPublicKey = Deno.env.get('VITE_VAPID_PUBLIC_KEY') ?? Deno.env.get('VAPID_PUBLIC_KEY');
+  const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY');
+  const vapidSubject = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:support@shahm.app';
+
+  if (!supabaseUrl || !serviceRoleKey || !vapidPublicKey || !vapidPrivateKey) {
+    return jsonResponse(500, { error: 'Push function environment is incomplete' });
+  }
+
+  const authHeader = request.headers.get('authorization') ?? '';
+  if (authHeader !== `Bearer ${serviceRoleKey}`) {
+    return jsonResponse(401, { error: 'Not authorized to trigger push notifications' });
+  }
+
+  let payload: PushPayload;
+  try {
+    payload = await request.json();
+  } catch {
+    return jsonResponse(400, { error: 'Request body must be valid JSON' });
+  }
+
+  if (!payload.title || !payload.body) {
+    return jsonResponse(422, { error: 'title and body are required' });
+  }
+  if ((!payload.user_ids || payload.user_ids.length === 0) && !payload.trip_id) {
+    return jsonResponse(422, { error: 'Provide either user_ids or trip_id' });
+  }
+
+  const { createClient } = await import('npm:@supabase/supabase-js@2.45.4');
+  const webpush = await import('npm:web-push@3.6.7');
+
   webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
-  let input: SendPushRequest;
-  try {
-    input = await request.json();
-  } catch {
-    return json(400, { error: "Request body must be valid JSON" });
-  }
+  const serviceClient = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 
-  const targetCount = [input.trip_id, input.assistance_id, input.user_id].filter(Boolean).length;
-  if (targetCount !== 1) {
-    return json(422, { error: "Exactly one target is required" });
-  }
-  if ((input.trip_id && !isUuid(input.trip_id)) || (input.assistance_id && !isUuid(input.assistance_id)) || (input.user_id && !isUuid(input.user_id))) {
-    return json(422, { error: "Invalid target" });
-  }
+  let targetUserIds = payload.user_ids ?? [];
 
-  try {
-    const serviceClient = getServiceClient();
-    let userIds: string[];
-    const payload = defaultPayload(input.payload);
+  if (payload.trip_id && targetUserIds.length === 0) {
+    // Only ACTIVE volunteers whose last known position is within 20 km of the
+    // trip's pick-up point and was reported in the last 3 hours.
+    const { data: nearby, error: nearbyError } = await serviceClient.rpc(
+      'get_nearby_volunteer_ids',
+      {
+        p_trip_id: payload.trip_id,
+        p_radius_km: NEARBY_RADIUS_KM,
+        p_max_age_minutes: LOCATION_MAX_AGE_MINUTES,
+      },
+    );
 
-    if (input.trip_id) {
-      const { data, error } = await serviceClient.rpc("get_nearby_volunteer_ids", {
-        p_trip_id: input.trip_id,
-        p_radius_km: 20,
-        p_max_age_minutes: 180,
+    if (nearbyError) {
+      console.error('get_nearby_volunteer_ids failed', {
+        code: nearbyError.code,
+        message: nearbyError.message,
       });
-      if (error) throw new Error(`Could not find nearby volunteers: ${error.message}`);
-      userIds = (data ?? []).map((row: { user_id: string }) => row.user_id);
-    } else if (input.assistance_id) {
-      const { data, error } = await serviceClient.rpc("get_nearby_assistance_volunteer_ids", {
-        p_assistance_id: input.assistance_id,
-      });
-      if (error) throw new Error(`Could not find nearby Shahm users: ${error.message}`);
-      userIds = (data ?? []).map((row: { user_id: string }) => row.user_id);
-    } else {
-      userIds = [input.user_id as string];
+      return jsonResponse(500, { error: 'Could not resolve nearby volunteers' });
     }
 
-    const result = await sendToUsers(serviceClient, userIds, payload);
-    console.log("Push dispatch completed", { targetCount: userIds.length, ...result });
-    return json(200, result);
-  } catch (error) {
-    console.error("Push dispatch failed", {
-      message: error instanceof Error ? error.message : "unknown error",
-    });
-    return json(500, { error: "Push dispatch failed" });
+    targetUserIds = (nearby ?? []).map((row: { user_id: string }) => row.user_id);
   }
+
+  if (targetUserIds.length === 0) {
+    return jsonResponse(200, { sent: 0, failed: 0 });
+  }
+
+  const { data: subscriptions, error: subsError } = await serviceClient
+    .from('push_subscriptions')
+    .select('user_id, subscription')
+    .in('user_id', targetUserIds);
+
+  if (subsError) {
+    return jsonResponse(500, { error: 'Could not load push subscriptions' });
+  }
+
+  const notificationPayload = JSON.stringify({
+    title: payload.title,
+    body: payload.body,
+    url: payload.url ?? '/',
+    tag: payload.tag ?? (payload.trip_id ? `trip-${payload.trip_id}` : undefined),
+  });
+
+  let sent = 0;
+  let failed = 0;
+  const staleUserIds: string[] = [];
+
+  await Promise.all(
+    (subscriptions ?? []).map(async (row: { user_id: string; subscription: StoredSubscription }) => {
+      try {
+        await webpush.sendNotification(row.subscription, notificationPayload);
+        sent += 1;
+      } catch (err: unknown) {
+        failed += 1;
+        const statusCode = (err as { statusCode?: number })?.statusCode;
+        if (statusCode === 404 || statusCode === 410) {
+          staleUserIds.push(row.user_id);
+        } else {
+          console.error('push send failed', { user_id: row.user_id, statusCode });
+        }
+      }
+    })
+  );
+
+  if (staleUserIds.length > 0) {
+    await serviceClient.from('push_subscriptions').delete().in('user_id', staleUserIds);
+  }
+
+  return jsonResponse(200, { sent, failed, pruned: staleUserIds.length });
 });

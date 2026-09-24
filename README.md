@@ -1,82 +1,47 @@
-# شَهْم | Shahm
+# شَهْم — مساعدة على الطريق
 
-تطبيق ويب تقدّمي (PWA) بيربط **المستفيدين** اللي محتاجين مشوار أو عون على الطريق بـ**شهم** (متطوع) قريب منهم، بنطاق ٧ كيلومتر، وبحماية لبيانات الطرفين لحد ما الطلب يتقبل.
+تتضمن هذه الحزمة واجهة التطبيق، ملفات Supabase، ووظيفة إنشاء الطلبات. التطبيق يعرض واجهة عربية RTL بتصميم أخضر وكريمي، وحزمة تثبيت PWA للهواتف.
 
-**Stack:** React 18 · TypeScript · Vite · Tailwind CSS (RTL) · Supabase (Postgres + RLS + Edge Functions) · Cloudflare Pages · Web Push
+## ما يتضمنه التطبيق
 
-## المميزات
+- نافذة تثبيت وسط الشاشة بخلفية معتمة ومموهة. بعد إغلاقها يظهر زر تسجيل فعلي؛ ويختفي بعد التثبيت أو تسجيل الدخول.
+- أيقونة التثبيت وشاشة البداية والترويسة تستخدم شعار القطرة الأخضر الموحد؛ تم تحديث ملفات PWA بأسماء جديدة لإجبار الهاتف على جلب الشعار بعد تحديث التطبيق.
+- ترويسة رئيسية بسيطة تقتصر على شعار شهم واسمه، مع ترحيب شخصي وعبارة «الناس للناس» والاقتباس الذي طلبه المستخدم.
+- شريط سفلي ثابت لا يغطي المحتوى: حسابي، الإرشادات، والمشاوير.
+- نموذج «طلب مساعدة عالطريق» يجمع نوع المشكلة، نقطة البداية والوجهة، موعد المساعدة، عدد الأشخاص، وملاحظات اختيارية.
+- أنواع المشكلة تظهر للشهمين القريبين قبل القبول، كما تظهر في التنبيهات وبطاقة التفاصيل.
+- بعد القبول تظهر للمستفيد بيانات الشهم ورقم هاتفه والاتصال وواتساب والمسافة المسجلة لحظة القبول، إضافة إلى نوع السيارة ولونها ورقم لوحتها.
+- تسجيل الشهم يتطلب بيانات السيارة وإقرار المسؤولية. قاعدة البيانات تمنع تعديل بيانات السيارة بعد الإقرار، وتطلب من الحسابات القديمة إكمال البيانات عند دخولها.
+- نوع الطلب والمسار وعدد الأشخاص والملاحظات تظهر في بطاقة واحدة مختصرة، من دون تكرار مسار الرحلة.
+- شاشة انتظار الطلب تعرض مؤشر تحميل دائريًا مع ملخص واحد للطلب وإمكانية إلغائه.
 
-- **طلب مشوار فوري:** المستفيد يبعت طلب، أقرب شهم يقبله، وبعدها بس بيتكشف رقم التواصل. الطلب بينتهي تلقائيًا لو محدش قبله.
-- **عون على الطريق:** طلبات مساعدة (عطل، بنزين، إلخ) بتوصل للشهم القريب، مع تبادل بيانات التواصل بعد القبول.
-- **أدوار متعددة:** نفس الحساب ممكن يبقى شهم ومستفيد، ولكل دور بروفايل مستقل.
-- **إشعارات Web Push** وتثبيت كتطبيق على الموبايل، مع صفحة offline.
-- **لوحة إدارة** (`ops_admin` / `verification_admin` / `analytics_viewer`): مراجعة البلاغات، المستخدمين، التحليلات، ومراقبة الاستهلاك.
+## قبل تشغيل النسخة
 
-## هيكل المشروع
+1. ثبّت الاعتمادات بالأمر npm install.
+2. اضبط VITE_SUPABASE_ANON_KEY كما هو موضح في ملف .env.example.
+3. طبّق ملفات الترحيل بالترتيب على مشروع Supabase:
+   - supabase/migrations/20260917000000_shahm_core.sql
+   - supabase/migrations/20260917000001_create_trip_proxy_rpc.sql
+   - supabase/migrations/20260917000003_scheduling_distance_patient.sql
+   - supabase/migrations/20260917000004_volunteer_contact.sql
+   - supabase/migrations/20260917000006_volunteer_locations_for_push.sql
+   - supabase/migrations/20260924071143_volunteer_vehicle_details.sql
+   - supabase/migrations/20260924080000_roadside_assistance_details.sql
+4. انشر الوظائف المطلوبة، وبضمنها create-trip-proxy وsend-push.
+5. اضبط متغيرات بيئة الوظيفة: SUPABASE_URL وSUPABASE_ANON_KEY وSUPABASE_SERVICE_ROLE_KEY وALLOWED_ORIGINS. لا تضع مفتاح الخدمة في الواجهة الأمامية.
 
-```
-src/
-  App.tsx              المنسّق: يجمع الـ hooks والـ handlers المشتركة ويوجّه للشاشات
-  screens/             الشاشات الكاملة (تحميل، دخول، إعداد الحساب، إيقاف، خطأ)
-  hooks/               useAuthProfile, useAuthFlow, useVolunteerFeed, useAssistance, useRoleSubscriptions
-  features/
-    requester/         واجهة المستفيد (الطلب الحالي + نموذج الطلب)
-    volunteer/         واجهة الشهم (المشاوير، عون الطريق، الطلبات القريبة)
-    admin/             شريط تبويبات الأدمن وصلاحيات الأدوار
-    shared/            الإرشادات وحسابي (مشتركة بين الدورين)
-  components/
-    admin/             لوحات الإدارة (تحليلات، أمان، مستخدمين، استهلاك)
-    common/            مكونات مشتركة (الهيدر، التنقل السفلي، خريطة الموقع، البلاغات...)
-  lib/
-    supabase.ts        عميل Supabase والأنواع
-    apiErrors.ts       translateApiError (ترجمة رسائل الـ RPC)
-    constants.ts, appTypes.ts   ثوابت وأنواع مشتركة
-    push.ts            تسجيل الإشعارات واستدعاء دوال الإشعار
-    phone.ts           تطبيع أرقام الهاتف لروابط واتساب
-  sw.ts                Service Worker (Workbox)
-supabase/
-  migrations/          مخطط قاعدة البيانات بالترتيب الزمني (المصدر الوحيد للحقيقة)
-  functions/           Edge Functions (create-trip-proxy, send-push, notify-*)
-design/stitch/         مرجع تصميم الشاشات (للاطلاع فقط، مش جزء من البناء)
-docs/                  وثائق المعمارية والتاريخ
-public/                أيقونة الـ PWA، offline.html، _headers، _redirects
-```
+## تسجيل الدخول باستخدام Google
 
-## التشغيل محليًا
+فعّل Google من Supabase Authentication → Providers، ثم أضف نطاق النشر إلى Site URL وRedirect URLs. أدخل الاسم والهاتف، وأدخل بيانات السيارة وإقرار المسؤولية عند التسجيل كشهم.
 
-المتطلبات: Node.js 20+ (الـ devcontainer بيستخدم 22).
+## التشغيل المحلي
 
-```bash
-npm install
-cp .env.example .env      # واملأ القيم الحقيقية
-npm run dev
-```
+    npm install
+    # أضف VITE_SUPABASE_ANON_KEY إلى ملف .env
+    npm run dev
 
-| الأمر | الغرض |
-| --- | --- |
-| `npm run dev` | سيرفر التطوير |
-| `npm run typecheck` | فحص TypeScript |
-| `npm run build` | بناء نسخة الإنتاج (`dist/`) |
-| `npm run preview` | معاينة نسخة الإنتاج |
+## ملاحظات بيانات
 
-## قاعدة البيانات والدوال
-
-```bash
-npx supabase link --project-ref <YOUR_PROJECT_REF>
-npx supabase db push                      # تطبيق الـ migrations
-npx supabase functions deploy <function>  # نشر Edge Function
-```
-
-الـ secrets الخاصة بالدوال (`service_role`، مفتاح VAPID الخاص) بتتضبط في Supabase فقط ومش بتتكتب في الريبو أو `.env`. التفاصيل والـ conventions في [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
-
-## النشر
-
-الموقع بيتنشر على **Cloudflare Pages** (build command: `npm run build`، output: `dist`). ضبط الـ headers والـ SPA fallback في `public/_headers` و`public/_redirects`.
-
-قبل تشغيل تسجيل الدخول بجوجل على أي دومين (production أو preview)، ضيف الدومين في Supabase → Authentication → URL Configuration → Redirect URLs.
-
-## ملاحظات للمساهمين
-
-- كل تغيير في قاعدة البيانات يتعمل كـ migration جديدة بترقيم زمني، وما بنعدّلش migration اتطبقت.
-- نصوص الواجهة بالعربي المصري العامي، وما بنغيّرش نظام التصميم الموجود.
-- سجل التغييرات في [`CHANGELOG.md`](CHANGELOG.md).
+- المسافة المعروضة للمستفيد هي المسافة المحسوبة عند قبول الطلب؛ لا نعرض إحداثيات موقع الشهم الدقيقة.
+- الطلبات القديمة التي لا تحتوي على تصنيف مشكلة تحصل على التصنيف العام عند تطبيق الترحيل.
+- بيانات السيارة المثبتة لا يمكن تغييرها من حساب المستخدم بعد الإقرار.

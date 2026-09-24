@@ -15,9 +15,12 @@ create table if not exists public.volunteer_locations (
   lng double precision not null check (lng between 24.5 and 37.0),
   updated_at timestamptz not null default now()
 );
+
 alter table public.volunteer_locations enable row level security;
+
 revoke all on public.volunteer_locations from public, anon, authenticated;
 grant all on public.volunteer_locations to service_role;
+
 -- ============================================================
 -- Volunteer reports own position (called by the app)
 -- ============================================================
@@ -63,10 +66,13 @@ begin
       updated_at = now();
 end;
 $$;
+
 revoke all on function public.update_volunteer_location(double precision, double precision)
   from public, anon, authenticated;
+
 grant execute on function public.update_volunteer_location(double precision, double precision)
   to authenticated;
+
 -- ============================================================
 -- Nearby volunteers for a pending trip (called by send-push only)
 -- ============================================================
@@ -114,7 +120,9 @@ begin
     ) <= least(greatest(coalesce(p_radius_km, 20), 0), 20);
 end;
 $$;
+
 revoke all on function public.get_nearby_volunteer_ids(uuid, double precision, integer)
   from public, anon, authenticated;
+
 grant execute on function public.get_nearby_volunteer_ids(uuid, double precision, integer)
   to service_role;

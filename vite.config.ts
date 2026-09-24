@@ -11,34 +11,34 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.ts',
       registerType: 'autoUpdate',
-      includeAssets: ['offline.html'],
+      includeAssets: ['offline.html', 'shahm-app-icon-192-20260924.png', 'shahm-app-icon-512-20260924.png', 'shahm-logo-mark-20260924.png'],
       manifest: {
-        name: 'شَهْم - نقل الحالات العلاجية',
+        name: 'شَهْم - مساعدة على الطريق',
         short_name: 'شَهْم',
-        description: 'منصة تكافلية غير ربحية لنقل الحالات العلاجية',
+        description: 'منصة تكافلية لمساندة أصحاب الأعطال على الطريق',
         start_url: '/',
         scope: '/',
         display: 'standalone',
         orientation: 'portrait',
         background_color: '#F7F8F9',
-        theme_color: '#146B44',
+        theme_color: '#005131',
         lang: 'ar',
         dir: 'rtl',
         icons: [
           {
-            src: 'pwa-512x512.png',
+            src: 'shahm-app-icon-192-20260924.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: 'pwa-512x512.png',
+            src: 'shahm-app-icon-512-20260924.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: 'pwa-512x512.png',
+            src: 'shahm-app-icon-512-20260924.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable'
@@ -52,16 +52,5 @@ export default defineConfig({
   ],
   server: {
     port: 5173,
-  },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          supabase: ['@supabase/supabase-js'],
-          charts: ['recharts'],
-          icons: ['lucide-react'],
-        },
-      },
-    },
   },
 });

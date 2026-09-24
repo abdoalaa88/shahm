@@ -8,13 +8,13 @@ export const EmptyVolunteersFeed: React.FC = () => {
 
   const handleEnablePush = async () => {
     setLoading(true);
-    const success = await registerPushNotifications('volunteer');
+    const success = await registerPushNotifications();
     setLoading(false);
     if (success) setPushEnabled(true);
   };
 
   return (
-    <div className="stitch-card p-6 text-center space-y-3">
+    <div className="bg-white p-6 rounded-2xl border border-[#8A949E]/20 text-center space-y-3">
       <div className="w-12 h-12 bg-[#F7F8F9] rounded-full flex items-center justify-center mx-auto text-[#6B7280]">
         <Clock className="w-6 h-6" />
       </div>
@@ -66,7 +66,7 @@ export const RaceConditionToast: React.FC<{ onClose: () => void }> = ({ onClose 
     <div className="fixed bottom-5 right-5 left-5 md:left-auto md:w-96 z-50 bg-[#1F2430] text-white p-4 rounded-2xl shadow-xl flex items-center justify-between gap-3 text-right">
       <div className="flex items-center gap-2">
         <AlertCircle className="w-5 h-5 text-[#E8A33D] shrink-0" />
-        <span className="text-xs font-medium">عذراً، تم قبول هذا الطلب من شهم آخر للتو</span>
+        <span className="text-xs font-medium">عذراً، تم قبول هذا الطلب من متطوع آخر للتو</span>
       </div>
       <button onClick={onClose} className="text-xs text-[#8A949E] hover:text-white shrink-0">حسناً</button>
     </div>

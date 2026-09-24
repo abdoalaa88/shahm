@@ -1,11 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 
-export const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://xisotlcjtaiptabjdocp.supabase.co';
-export const hasSupabaseConfig = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
+export const supabaseUrl = 'https://giojwpngkxddnuhqqvnt.supabase.co';
+export const hasSupabaseConfig = Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY);
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'missing-anon-key';
 
-// The linked project currently exposes an empty public schema in generated types.
-// Keep runtime access untyped until the approved migrations are applied remotely.
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export type UserRole =
@@ -16,8 +14,12 @@ export type UserRole =
   | 'analytics_viewer'
   | 'super_admin';
 
-export type TripStatus = 'pending' | 'accepted' | 'completed' | 'cancelled' | 'expired';
-export type RequesterRelation = 'patient' | 'guardian' | 'companion';
+export type TripStatus = 'pending' | 'accepted' | 'completed' | 'cancelled';
+
+export type RequesterRelation =
+  | 'patient'
+  | 'guardian'
+  | 'companion';
 
 export interface Profile {
   id: string;
@@ -26,84 +28,58 @@ export interface Profile {
   role: UserRole;
   verification_status: 'unverified' | 'pending_review' | 'verified' | 'rejected';
   is_active: boolean;
+  vehicle_type?: string | null;
+  vehicle_color?: string | null;
+  vehicle_plate_number?: string | null;
+  vehicle_data_responsibility_ack?: boolean;
+  vehicle_data_acknowledged_at?: string | null;
   created_at: string;
-  patient_age?: number | null;
-  patient_condition?: string | null;
 }
 
 export interface PublicTrip {
   id: string;
   requester_id: string;
-  volunteer_id?: string;
-  origin_area_label: string;
-  destination_area_label: string;
-  status: TripStatus;
-  requester_relation: RequesterRelation;
-  created_at: string;
-  accepted_at?: string;
-  completed_at?: string;
-  scheduled_at?: string | null;
-  expires_at?: string | null;
-  passenger_count: number;
-  special_notes?: string | null;
-}
-
-export interface NearbyTrip {
-  id: string;
-  requester_id?: string;
   volunteer_id?: string | null;
   origin_area_label: string;
   destination_area_label: string;
   status: TripStatus;
   requester_relation: RequesterRelation;
+  scheduled_at: string;
   created_at: string;
-  scheduled_at: string | null;
-  distance_km?: number;
-  passenger_count: number;
-  special_notes?: string | null;
+  accepted_at?: string | null;
+  completed_at?: string | null;
+  distance_km?: number | null;
+  problem_type?: string;
+  people_count?: number;
+  request_notes?: string;
+}
+
+export interface VolunteerContactData {
+  trip_id: string;
+  volunteer_first_name: string;
+  volunteer_phone: string;
+  accepted_at: string | null;
+  distance_km: number | null;
+  vehicle_type: string | null;
+  vehicle_color: string | null;
+  vehicle_plate_number: string | null;
 }
 
 export interface ContactCardData {
   trip_id: string;
-  requester_id: string;
   requester_first_name: string;
   requester_phone: string;
   requester_relation: RequesterRelation;
+  scheduled_at: string;
   origin_address: string;
   origin_lat: number;
   origin_lng: number;
   destination_address: string;
   destination_lat: number;
   destination_lng: number;
-  patient_age?: number | null;
-  patient_condition?: string | null;
-  passenger_count?: number;
-  special_notes?: string | null;
-}
-
-export interface AssistanceContactData {
-  assistance_id: string;
-  requester_id: string;
-  requester_first_name: string;
-  requester_phone: string;
-  issue_type: string;
-  description: string;
-  lat: number;
-  lng: number;
-  distance_km?: number;
-}
-
-export type AssistanceRequestStatus = 'pending' | 'accepted' | 'completed' | 'cancelled' | 'expired';
-
-export interface MyAssistanceRequest {
-  assistance_id: string;
-  issue_type: string;
-  description: string;
-  status: AssistanceRequestStatus;
-  created_at: string;
-  helper_id: string | null;
-  helper_first_name: string | null;
-  helper_phone: string | null;
+  problem_type: string;
+  people_count: number;
+  request_notes: string;
 }
 
 export interface Report {

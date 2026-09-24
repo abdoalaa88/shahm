@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, Report } from '../../lib/supabase';
-import { translateApiError } from '../../lib/apiErrors';
 import { ShieldAlert, CheckCircle, Ban, RefreshCw, Loader2 } from 'lucide-react';
 
 export const SafetyPanel: React.FC = () => {
@@ -35,7 +34,7 @@ export const SafetyPanel: React.FC = () => {
       setActionMsg('تم تعليق الحساب وتوثيق الإجراء بنجاح.');
       fetchReports();
     } else {
-      alert(translateApiError(error.message));
+      alert(error.message);
     }
   };
 
@@ -65,13 +64,13 @@ export const SafetyPanel: React.FC = () => {
           <p className="text-xs">جاري تحميل البلاغات المسجلة...</p>
         </div>
       ) : reports.length === 0 ? (
-        <div className="stitch-card p-8 text-center text-xs text-[#6B7280]">
+        <div className="p-8 text-center bg-white rounded-2xl border border-[#8A949E]/20 text-xs text-[#6B7280]">
           لا توجد بلاغات مسجلة حالياً
         </div>
       ) : (
         <div className="space-y-3">
           {reports.map((rep) => (
-            <div key={rep.id} className="stitch-card p-4 space-y-2">
+            <div key={rep.id} className="p-4 bg-white rounded-2xl border border-[#8A949E]/20 shadow-sm space-y-2">
               <div className="flex justify-between items-center text-xs">
                 <span className={`px-2 py-0.5 rounded-md font-semibold ${
                   rep.status === 'pending' ? 'bg-[#FBEFDC] text-[#8F5A0A]' : 'bg-[#EEF0EF] text-[#4B5A52]'

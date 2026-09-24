@@ -62,10 +62,12 @@ begin
   return v_trip_id;
 end;
 $$;
+
 revoke all on function public.create_trip_from_proxy(
   uuid, text, text, double precision, double precision, text, text,
   double precision, double precision, public.requester_relation, inet
 ) from public, anon, authenticated;
+
 grant execute on function public.create_trip_from_proxy(
   uuid, text, text, double precision, double precision, text, text,
   double precision, double precision, public.requester_relation, inet

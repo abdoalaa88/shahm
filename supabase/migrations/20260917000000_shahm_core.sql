@@ -2,6 +2,7 @@
 -- Apply locally first and review against the linked project before any remote deployment.
 
 create extension if not exists pgcrypto;
+
 create type public.user_role as enum (
   'volunteer', 'requester', 'ops_admin', 'verification_admin', 'analytics_viewer', 'super_admin'
 );
@@ -9,6 +10,7 @@ create type public.trip_status as enum ('pending', 'accepted', 'completed', 'can
 create type public.requester_relation as enum ('patient', 'guardian', 'companion');
 create type public.verification_status as enum ('unverified', 'pending_review', 'verified', 'rejected');
 create type public.report_status as enum ('pending', 'reviewed', 'dismissed', 'actioned');
+
 create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   first_name text not null check (char_length(first_name) between 2 and 40),
@@ -18,6 +20,7 @@ create table public.profiles (
   is_active boolean not null default true,
   created_at timestamptz not null default now()
 );
+
 create table public.trips (
   id uuid primary key default gen_random_uuid(),
   requester_id uuid not null references public.profiles(id),
@@ -39,6 +42,7 @@ create table public.trips (
     or (status = 'cancelled')
   )
 );
+
 create table public.trip_locations (
   trip_id uuid primary key references public.trips(id) on delete cascade,
   origin_address text not null,
@@ -48,6 +52,7 @@ create table public.trip_locations (
   destination_lat double precision not null check (destination_lat between -90 and 90),
   destination_lng double precision not null check (destination_lng between -180 and 180)
 );
+
 create table public.verification_documents (
   id uuid primary key default gen_random_uuid(),
   profile_id uuid not null references public.profiles(id) on delete cascade,
@@ -58,6 +63,7 @@ create table public.verification_documents (
   submitted_at timestamptz not null default now(),
   purge_after timestamptz not null default (now() + interval '30 days')
 );
+
 create table public.reports (
   id uuid primary key default gen_random_uuid(),
   reporter_id uuid not null references public.profiles(id),
@@ -68,6 +74,7 @@ create table public.reports (
   resolution_notes text,
   created_at timestamptz not null default now()
 );
+
 create table public.audit_logs (
   id uuid primary key default gen_random_uuid(),
   actor_id uuid references public.profiles(id),
@@ -78,12 +85,14 @@ create table public.audit_logs (
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
+
 create table public.push_subscriptions (
   user_id uuid primary key references public.profiles(id) on delete cascade,
   subscription jsonb not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
 create index idx_trips_pending_created_at on public.trips (created_at desc) where status = 'pending';
 create index idx_trips_requester_status on public.trips (requester_id, status);
 create index idx_trips_volunteer_status on public.trips (volunteer_id, status);
@@ -92,6 +101,7 @@ create index idx_verification_documents_profile on public.verification_documents
 create index idx_verification_documents_purge on public.verification_documents (purge_after) where status <> 'rejected';
 create index idx_reports_status_created_at on public.reports (status, created_at desc);
 create index idx_audit_logs_created_at on public.audit_logs (created_at desc);
+
 create or replace function public.is_admin()
 returns boolean
 language sql
@@ -106,6 +116,7 @@ as $$
       and is_active
   );
 $$;
+
 create or replace function public.prevent_profile_privilege_escalation()
 returns trigger
 language plpgsql
@@ -122,9 +133,11 @@ begin
   return new;
 end;
 $$;
+
 create trigger trg_prevent_profile_privilege_escalation
 before update on public.profiles
 for each row execute function public.prevent_profile_privilege_escalation();
+
 alter table public.profiles enable row level security;
 alter table public.trips enable row level security;
 alter table public.trip_locations enable row level security;
@@ -132,16 +145,19 @@ alter table public.verification_documents enable row level security;
 alter table public.reports enable row level security;
 alter table public.audit_logs enable row level security;
 alter table public.push_subscriptions enable row level security;
+
 create policy profiles_select_own on public.profiles for select to authenticated using (id = auth.uid());
 create policy profiles_select_admin on public.profiles for select to authenticated using (public.is_admin());
 create policy profiles_insert_self on public.profiles for insert to authenticated with check (id = auth.uid() and role in ('requester', 'volunteer') and verification_status = 'unverified');
 create policy profiles_update_own on public.profiles for update to authenticated using (id = auth.uid()) with check (id = auth.uid());
+
 create policy trips_select_pending_volunteers on public.trips for select to authenticated using (
   status = 'pending' and exists (select 1 from public.profiles where id = auth.uid() and role = 'volunteer' and is_active)
 );
 create policy trips_select_own_requester on public.trips for select to authenticated using (requester_id = auth.uid());
 create policy trips_select_own_volunteer on public.trips for select to authenticated using (volunteer_id = auth.uid());
 create policy trips_select_admin on public.trips for select to authenticated using (public.is_admin());
+
 create policy trip_locations_select_requester on public.trip_locations for select to authenticated using (
   exists (select 1 from public.trips t where t.id = trip_id and t.requester_id = auth.uid())
 );
@@ -149,13 +165,16 @@ create policy trip_locations_select_assigned_volunteer on public.trip_locations 
   exists (select 1 from public.trips t where t.id = trip_id and t.volunteer_id = auth.uid() and t.status in ('accepted', 'completed'))
 );
 create policy trip_locations_select_admin on public.trip_locations for select to authenticated using (public.is_admin());
+
 create policy verification_documents_select_own_status on public.verification_documents for select to authenticated using (profile_id = auth.uid());
 create policy verification_documents_select_admin on public.verification_documents for select to authenticated using (public.is_admin());
 create policy verification_documents_insert_own on public.verification_documents for insert to authenticated with check (profile_id = auth.uid() and status = 'pending_review');
+
 create policy reports_insert_own on public.reports for insert to authenticated with check (reporter_id = auth.uid());
 create policy reports_select_admin on public.reports for select to authenticated using (public.is_admin());
 create policy audit_logs_select_admin on public.audit_logs for select to authenticated using (public.is_admin());
 create policy push_subscriptions_own on public.push_subscriptions for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+
 revoke all on public.profiles, public.trips, public.trip_locations, public.verification_documents, public.reports, public.audit_logs, public.push_subscriptions from anon;
 revoke insert, update, delete on public.trips, public.trip_locations from authenticated;
 revoke update, delete on public.verification_documents from authenticated;
@@ -167,6 +186,7 @@ grant select (id, profile_id, status, submitted_at, reviewed_at) on public.verif
 grant select, insert, update, delete on public.profiles, public.push_subscriptions to authenticated;
 grant select on public.trip_locations, public.reports to authenticated;
 grant all on all tables in schema public to service_role;
+
 create or replace function public.create_trip(
   p_origin_area_label text, p_origin_address text, p_origin_lat double precision, p_origin_lng double precision,
   p_destination_area_label text, p_destination_address text, p_destination_lat double precision, p_destination_lng double precision,
@@ -194,6 +214,7 @@ begin
   return v_trip_id;
 end;
 $$;
+
 create or replace function public.accept_trip(p_trip_id uuid)
 returns table (trip_id uuid, requester_first_name text, requester_phone text, requester_relation public.requester_relation, origin_address text, origin_lat double precision, origin_lng double precision, destination_address text, destination_lat double precision, destination_lng double precision)
 language plpgsql security definer set search_path = public
@@ -208,6 +229,7 @@ begin
   from trips t join profiles p on p.id = t.requester_id join trip_locations l on l.trip_id = t.id where t.id = p_trip_id;
 end;
 $$;
+
 create or replace function public.reveal_contact(p_trip_id uuid)
 returns table (trip_id uuid, requester_first_name text, requester_phone text, requester_relation public.requester_relation, origin_address text, origin_lat double precision, origin_lng double precision, destination_address text, destination_lat double precision, destination_lng double precision)
 language sql security definer set search_path = public
@@ -216,6 +238,7 @@ as $$
   from trips t join profiles p on p.id = t.requester_id join trip_locations l on l.trip_id = t.id
   where t.id = p_trip_id and t.volunteer_id = auth.uid() and t.status in ('accepted', 'completed');
 $$;
+
 create or replace function public.cancel_trip(p_trip_id uuid)
 returns void language plpgsql security definer set search_path = public
 as $$
@@ -226,6 +249,7 @@ begin
   update trips set status = 'cancelled' where id = p_trip_id;
 end;
 $$;
+
 create or replace function public.complete_trip(p_trip_id uuid)
 returns void language plpgsql security definer set search_path = public
 as $$
@@ -236,6 +260,7 @@ begin
   update trips set status = 'completed', completed_at = now() where id = p_trip_id;
 end;
 $$;
+
 create or replace function public.submit_report(p_trip_id uuid, p_reported_profile_id uuid, p_reason text)
 returns uuid language plpgsql security definer set search_path = public
 as $$
@@ -246,6 +271,7 @@ begin
   return v_id;
 end;
 $$;
+
 create or replace function public.suspend_account(p_target_profile_id uuid, p_reason text)
 returns void language plpgsql security definer set search_path = public
 as $$
@@ -255,6 +281,7 @@ begin
   insert into audit_logs (actor_id, action, target_profile_id, reason) values (auth.uid(), 'suspend_account', p_target_profile_id, p_reason);
 end;
 $$;
+
 create or replace function public.get_analytics_kpis()
 returns table (total_users bigint, total_volunteers bigint, total_requesters bigint, total_trips bigint, completed_trips bigint, cancelled_trips bigint, completion_rate numeric, cancellation_rate numeric)
 language plpgsql security definer set search_path = public
@@ -274,6 +301,7 @@ begin
   return next;
 end;
 $$;
+
 create or replace function public.get_geographic_distribution(p_min_threshold integer)
 returns table (origin_area_label text, trip_count bigint)
 language plpgsql security definer set search_path = public
@@ -283,6 +311,7 @@ begin
   return query select t.origin_area_label, count(*) from trips t group by t.origin_area_label having count(*) >= greatest(p_min_threshold, 1) order by count(*) desc;
 end;
 $$;
+
 create or replace function public.get_peak_hours_distribution()
 returns table (hour_of_day integer, trip_count bigint)
 language plpgsql security definer set search_path = public
@@ -292,25 +321,31 @@ begin
   return query select extract(hour from t.created_at)::integer, count(*) from trips t group by extract(hour from t.created_at)::integer order by 1;
 end;
 $$;
+
 revoke all on function public.create_trip(text, text, double precision, double precision, text, text, double precision, double precision, public.requester_relation, inet) from public, anon, authenticated;
 grant execute on function public.create_trip(text, text, double precision, double precision, text, text, double precision, double precision, public.requester_relation, inet) to service_role;
 revoke all on function public.accept_trip(uuid), public.reveal_contact(uuid), public.cancel_trip(uuid), public.complete_trip(uuid), public.submit_report(uuid, uuid, text), public.suspend_account(uuid, text) from public, anon;
 grant execute on function public.accept_trip(uuid), public.reveal_contact(uuid), public.cancel_trip(uuid), public.complete_trip(uuid), public.submit_report(uuid, uuid, text), public.suspend_account(uuid, text) to authenticated;
 revoke all on function public.get_analytics_kpis(), public.get_geographic_distribution(integer), public.get_peak_hours_distribution() from public, anon;
 grant execute on function public.get_analytics_kpis(), public.get_geographic_distribution(integer), public.get_peak_hours_distribution() to authenticated;
+
 insert into storage.buckets (id, name, public)
 values ('verification-documents', 'verification-documents', false)
 on conflict (id) do update set public = false;
+
 create policy verification_documents_storage_insert on storage.objects
 for insert to authenticated
 with check (
   bucket_id = 'verification-documents'
   and (storage.foldername(name))[1] = (select auth.uid()::text)
 );
+
 create policy verification_documents_storage_admin_read on storage.objects
 for select to authenticated
 using (bucket_id = 'verification-documents' and public.is_admin());
+
 create policy verification_documents_storage_admin_delete on storage.objects
 for delete to authenticated
 using (bucket_id = 'verification-documents' and public.is_admin());
+
 alter publication supabase_realtime add table public.trips;

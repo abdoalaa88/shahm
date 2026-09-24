@@ -65,7 +65,7 @@ export const UsageMonitor: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="stitch-card p-5 space-y-3">
+        <div className="bg-white p-5 rounded-2xl border border-[#8A949E]/20 shadow-sm space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-[#1F2430]">مساحة قاعدة البيانات (PostgreSQL)</span>
             <Database className="w-4 h-4 text-[#146B44]" />
@@ -79,7 +79,7 @@ export const UsageMonitor: React.FC = () => {
           <div className="text-[11px] text-[#6B7280]">الحد الأقصى المجاني: 500 ميجابايت على Supabase</div>
         </div>
 
-        <div className="stitch-card p-5 space-y-3">
+        <div className="bg-white p-5 rounded-2xl border border-[#8A949E]/20 shadow-sm space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-[#1F2430]">المستخدمين النشطين شهرياً</span>
             <Zap className="w-4 h-4 text-[#2F6FED]" />

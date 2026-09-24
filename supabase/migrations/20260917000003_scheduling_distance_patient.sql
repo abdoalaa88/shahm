@@ -4,39 +4,50 @@
 alter table public.profiles
 add column if not exists patient_age integer,
 add column if not exists patient_condition text;
+
 alter table public.profiles
 drop constraint if exists profiles_patient_age_check;
+
 alter table public.profiles
 add constraint profiles_patient_age_check
 check (patient_age is null or patient_age between 0 and 120);
+
 alter table public.profiles
 drop constraint if exists profiles_patient_condition_check;
+
 alter table public.profiles
 add constraint profiles_patient_condition_check
 check (
 patient_condition is null
 or char_length(trim(patient_condition)) between 2 and 500
 );
+
 alter table public.trips
 add column if not exists scheduled_at timestamptz;
+
 -- Existing trips from the previous schema did not have appointments.
 -- Keep them valid by treating their creation time as the historical schedule.
 update public.trips
 set scheduled_at = created_at
 where scheduled_at is null;
+
 alter table public.trips
 alter column scheduled_at set not null;
+
 alter table public.trips
 drop constraint if exists trips_scheduled_at_check;
+
 alter table public.trips
 add constraint trips_scheduled_at_check
 check (
 scheduled_at is not null
 and scheduled_at >= created_at - interval '1 minute'
 );
+
 create index if not exists idx_trips_pending_scheduled_at
 on public.trips (scheduled_at)
 where status = 'pending';
+
 -- ============================================================
 -- PENDING TRIPS NEARBY
 -- ============================================================
@@ -150,9 +161,12 @@ greatest(coalesce(p_radius_km, 20), 0),
 order by distance_km asc, t.created_at desc;
 end;
 $$;
+
 -- Volunteers must use the proximity RPC instead of broad pending-trip reads.
 revoke select on public.trips from authenticated;
+
 drop policy if exists trips_select_pending_volunteers on public.trips;
+
 create policy trips_select_pending_volunteers
 on public.trips
 for select
@@ -161,6 +175,7 @@ using (
 status = 'pending'
 and false
 );
+
 grant select (
 id,
 requester_id,
@@ -176,18 +191,21 @@ scheduled_at
 )
 on public.trips
 to authenticated;
+
 revoke all on function public.get_pending_trips_nearby(
 double precision,
 double precision,
 double precision
 )
 from public, anon, authenticated;
+
 grant execute on function public.get_pending_trips_nearby(
 double precision,
 double precision,
 double precision
 )
 to authenticated;
+
 -- ============================================================
 -- CREATE TRIP FROM PROXY
 -- ============================================================
@@ -205,6 +223,7 @@ double precision,
 public.requester_relation,
 inet
 );
+
 create or replace function public.create_trip_from_proxy(
 p_requester_id uuid,
 p_origin_area_label text,
@@ -313,6 +332,7 @@ p_destination_lng
 return v_trip_id;
 end;
 $$;
+
 revoke all on function public.create_trip_from_proxy(
 uuid,
 text,
@@ -328,6 +348,7 @@ inet,
 timestamptz
 )
 from public, anon, authenticated;
+
 grant execute on function public.create_trip_from_proxy(
 uuid,
 text,
@@ -343,6 +364,7 @@ inet,
 timestamptz
 )
 to service_role;
+
 -- ============================================================
 -- DIRECT CREATE TRIP
 -- ============================================================
@@ -359,6 +381,7 @@ double precision,
 public.requester_relation,
 inet
 );
+
 create or replace function public.create_trip(
 p_origin_area_label text,
 p_origin_address text,
@@ -463,6 +486,7 @@ p_destination_lng
 return v_trip_id;
 end;
 $$;
+
 revoke all on function public.create_trip(
 text,
 text,
@@ -477,6 +501,7 @@ inet,
 timestamptz
 )
 from public, anon, authenticated;
+
 grant execute on function public.create_trip(
 text,
 text,
@@ -491,16 +516,19 @@ inet,
 timestamptz
 )
 to service_role;
+
 -- ============================================================
 -- ACCEPT TRIP
 -- ============================================================
 
 drop function if exists public.accept_trip(uuid);
+
 drop function if exists public.accept_trip(
 uuid,
 double precision,
 double precision
 );
+
 create or replace function public.accept_trip(
 p_trip_id uuid,
 p_volunteer_lat double precision,
@@ -623,23 +651,27 @@ on l.trip_id = t.id
 where t.id = p_trip_id;
 end;
 $$;
+
 revoke all on function public.accept_trip(
 uuid,
 double precision,
 double precision
 )
 from public, anon, authenticated;
+
 grant execute on function public.accept_trip(
 uuid,
 double precision,
 double precision
 )
 to authenticated;
+
 -- ============================================================
 -- REVEAL CONTACT
 -- ============================================================
 
 drop function if exists public.reveal_contact(uuid);
+
 create or replace function public.reveal_contact(
 p_trip_id uuid
 )
@@ -685,10 +717,13 @@ where t.id = p_trip_id
 and t.volunteer_id = auth.uid()
 and t.status in ('accepted', 'completed');
 $$;
+
 revoke all on function public.reveal_contact(uuid)
 from public, anon, authenticated;
+
 grant execute on function public.reveal_contact(uuid)
 to authenticated;
+
 -- ============================================================
 -- PROFILE ACCESS
 -- ============================================================
@@ -706,12 +741,14 @@ patient_condition
 )
 on public.profiles
 to authenticated;
+
 -- ============================================================
 -- PATIENT PROFILE MUTATION PROTECTION
 -- ============================================================
 
 drop trigger if exists trg_prevent_patient_profile_mutation
 on public.profiles;
+
 create or replace function public.prevent_patient_profile_mutation()
 returns trigger
 language plpgsql
@@ -737,10 +774,12 @@ end if;
 return new;
 end;
 $$;
+
 create trigger trg_prevent_patient_profile_mutation
 before update on public.profiles
 for each row
 execute function public.prevent_patient_profile_mutation();
+
 -- ============================================================
 -- SAFE CLEANUP OF OBSOLETE FUNCTION SIGNATURES
 -- ============================================================

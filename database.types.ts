@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -11,31 +11,6 @@ export type Database = {
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
-  }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
   }
   public: {
     Tables: {
@@ -100,27 +75,48 @@ export type Database = {
           first_name: string
           id: string
           is_active: boolean
+          patient_age: number | null
+          patient_condition: string | null
           phone_number: string
           role: Database["public"]["Enums"]["user_role"]
           verification_status: Database["public"]["Enums"]["verification_status"]
+          vehicle_type: string | null
+          vehicle_color: string | null
+          vehicle_plate_number: string | null
+          vehicle_data_responsibility_ack: boolean
+          vehicle_data_acknowledged_at: string | null
         }
         Insert: {
           created_at?: string
           first_name: string
           id: string
           is_active?: boolean
+          patient_age?: number | null
+          patient_condition?: string | null
           phone_number: string
           role: Database["public"]["Enums"]["user_role"]
           verification_status?: Database["public"]["Enums"]["verification_status"]
+          vehicle_type?: string | null
+          vehicle_color?: string | null
+          vehicle_plate_number?: string | null
+          vehicle_data_responsibility_ack?: boolean
+          vehicle_data_acknowledged_at?: string | null
         }
         Update: {
           created_at?: string
           first_name?: string
           id?: string
           is_active?: boolean
+          patient_age?: number | null
+          patient_condition?: string | null
           phone_number?: string
           role?: Database["public"]["Enums"]["user_role"]
           verification_status?: Database["public"]["Enums"]["verification_status"]
+          vehicle_type?: string | null
+          vehicle_color?: string | null
+          vehicle_plate_number?: string | null
+          vehicle_data_responsibility_ack?: boolean
+          vehicle_data_acknowledged_at?: string | null
         }
         Relationships: []
       }
@@ -152,54 +148,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      trips: {
-        Row: {
-          accepted_at: string | null
-          completed_at: string | null
-          created_at: string
-          destination_area_label: string
-          id: string
-          origin_area_label: string
-          passenger_count: number
-          requester_id: string
-          requester_relation: Database["public"]["Enums"]["requester_relation"]
-          scheduled_at: string
-          special_notes: string | null
-          status: Database["public"]["Enums"]["trip_status"]
-          volunteer_id: string | null
-        }
-        Insert: {
-          accepted_at?: string | null
-          completed_at?: string | null
-          created_at?: string
-          destination_area_label: string
-          id?: string
-          origin_area_label: string
-          passenger_count?: number
-          requester_id: string
-          requester_relation?: Database["public"]["Enums"]["requester_relation"]
-          scheduled_at: string
-          special_notes?: string | null
-          status?: Database["public"]["Enums"]["trip_status"]
-          volunteer_id?: string | null
-        }
-        Update: {
-          accepted_at?: string | null
-          completed_at?: string | null
-          created_at?: string
-          destination_area_label?: string
-          id?: string
-          origin_area_label?: string
-          passenger_count?: number
-          requester_id?: string
-          requester_relation?: Database["public"]["Enums"]["requester_relation"]
-          scheduled_at?: string
-          special_notes?: string | null
-          status?: Database["public"]["Enums"]["trip_status"]
-          volunteer_id?: string | null
-        }
-        Relationships: []
       }
       reports: {
         Row: {
@@ -297,6 +245,7 @@ export type Database = {
       trips: {
         Row: {
           accepted_at: string | null
+          accepted_distance_km: number | null
           ack_at: string | null
           ack_ip: unknown
           completed_at: string | null
@@ -305,13 +254,20 @@ export type Database = {
           good_faith_ack: boolean
           id: string
           origin_area_label: string
+          problem_type: string
+          people_count: number
+          request_notes: string
           requester_id: string
           requester_relation: Database["public"]["Enums"]["requester_relation"]
+          scheduled_at: string | null
           status: Database["public"]["Enums"]["trip_status"]
           volunteer_id: string | null
+          volunteer_lat: number | null
+          volunteer_lng: number | null
         }
         Insert: {
           accepted_at?: string | null
+          accepted_distance_km?: number | null
           ack_at?: string | null
           ack_ip?: unknown
           completed_at?: string | null
@@ -320,13 +276,20 @@ export type Database = {
           good_faith_ack?: boolean
           id?: string
           origin_area_label: string
+          problem_type?: string
+          people_count?: number
+          request_notes?: string
           requester_id: string
           requester_relation?: Database["public"]["Enums"]["requester_relation"]
+          scheduled_at?: string | null
           status?: Database["public"]["Enums"]["trip_status"]
           volunteer_id?: string | null
+          volunteer_lat?: number | null
+          volunteer_lng?: number | null
         }
         Update: {
           accepted_at?: string | null
+          accepted_distance_km?: number | null
           ack_at?: string | null
           ack_ip?: unknown
           completed_at?: string | null
@@ -335,10 +298,16 @@ export type Database = {
           good_faith_ack?: boolean
           id?: string
           origin_area_label?: string
+          problem_type?: string
+          people_count?: number
+          request_notes?: string
           requester_id?: string
           requester_relation?: Database["public"]["Enums"]["requester_relation"]
+          scheduled_at?: string | null
           status?: Database["public"]["Enums"]["trip_status"]
           volunteer_id?: string | null
+          volunteer_lat?: number | null
+          volunteer_lng?: number | null
         }
         Relationships: [
           {
@@ -411,108 +380,68 @@ export type Database = {
     }
     Functions: {
       accept_trip: {
-        Args: { p_trip_id: string }
+        Args: {
+          p_trip_id: string
+          p_volunteer_lat: number
+          p_volunteer_lng: number
+        }
         Returns: {
-          destination_address: string
-          destination_lat: number
-          destination_lng: number
-          origin_address: string
-          origin_lat: number
-          origin_lng: number
+          trip_id: string
           requester_first_name: string
           requester_phone: string
           requester_relation: Database["public"]["Enums"]["requester_relation"]
+          scheduled_at: string
+          origin_address: string
+          origin_lat: number
+          origin_lng: number
+          destination_address: string
+          destination_lat: number
+          destination_lng: number
+          distance_km: number
+          problem_type: string
+          people_count: number
+          request_notes: string
+        }[]
+      }
+      get_pending_trips_nearby: {
+        Args: {
+          p_lat: number
+          p_lng: number
+          p_radius_km?: number
+        }
+        Returns: {
+          id: string
+          requester_id: string
+          volunteer_id: string | null
+          origin_area_label: string
+          destination_area_label: string
+          status: Database["public"]["Enums"]["trip_status"]
+          requester_relation: Database["public"]["Enums"]["requester_relation"]
+          scheduled_at: string
+          created_at: string
+          accepted_at: string | null
+          completed_at: string | null
+          problem_type: string
+          people_count: number
+          request_notes: string
+          distance_km: number
+        }[]
+      }
+      reveal_volunteer_contact: {
+        Args: { p_trip_id: string }
+        Returns: {
           trip_id: string
+          volunteer_first_name: string
+          volunteer_phone: string
+          accepted_at: string | null
+          distance_km: number | null
+          vehicle_type: string | null
+          vehicle_color: string | null
+          vehicle_plate_number: string | null
         }[]
       }
       cancel_trip: { Args: { p_trip_id: string }; Returns: undefined }
       complete_trip: { Args: { p_trip_id: string }; Returns: undefined }
-      create_trip: {
-        Args: {
-          p_client_ip: unknown
-          p_destination_address: string
-          p_destination_area_label: string
-          p_destination_lat: number
-          p_destination_lng: number
-          p_origin_address: string
-          p_origin_area_label: string
-          p_origin_lat: number
-          p_origin_lng: number
-          p_requester_relation: Database["public"]["Enums"]["requester_relation"]
-        }
-        Returns: string
-      }
-      create_trip_from_proxy: {
-        Args: {
-          p_client_ip: unknown
-          p_destination_address: string
-          p_destination_area_label: string
-          p_destination_lat: number
-          p_destination_lng: number
-          p_origin_address: string
-          p_origin_area_label: string
-          p_origin_lat: number
-          p_origin_lng: number
-          p_requester_id: string
-          p_requester_relation: Database["public"]["Enums"]["requester_relation"]
-        }
-        Returns: string
-      }
-      get_analytics_kpis: {
-        Args: never
-        Returns: {
-          cancellation_rate: number
-          cancelled_trips: number
-          completed_trips: number
-          completion_rate: number
-          total_requesters: number
-          total_trips: number
-          total_users: number
-          total_volunteers: number
-        }[]
-      }
-      get_geographic_distribution: {
-        Args: { p_min_threshold: number }
-        Returns: {
-          origin_area_label: string
-          trip_count: number
-        }[]
-      }
-      get_peak_hours_distribution: {
-        Args: never
-        Returns: {
-          hour_of_day: number
-          trip_count: number
-        }[]
-      }
-      is_admin: { Args: never; Returns: boolean }
-      reveal_contact: {
-        Args: { p_trip_id: string }
-        Returns: {
-          destination_address: string
-          destination_lat: number
-          destination_lng: number
-          origin_address: string
-          origin_lat: number
-          origin_lng: number
-          requester_first_name: string
-          requester_phone: string
-          requester_relation: Database["public"]["Enums"]["requester_relation"]
-          trip_id: string
-        }[]
-      }
-      submit_report: {
-        Args: {
-          p_reason: string
-          p_reported_profile_id: string
-          p_trip_id: string
-        }
-        Returns: string
-      }
-      suspend_account: {
-        Args: { p_reason: string; p_target_profile_id: string }
-        Returns: undefined
-      }
     }
     Enums: {
       report_status: "pending" | "reviewed" | "dismissed" | "actioned"
@@ -655,9 +584,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       report_status: ["pending", "reviewed", "dismissed", "actioned"],

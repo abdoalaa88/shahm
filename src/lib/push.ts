@@ -1,12 +1,16 @@
-import { supabase, type UserRole } from './supabase';
+import { supabase } from './supabase';
 
 /**
- * Web Push helpers.
+ * ملاحظة إصلاح: كان مكوّن StateViews.tsx يستورد
+ * `registerPushNotifications` من './lib/push' لكن هذا الملف
+ * لم يكن موجوداً إطلاقاً في التسليم الأصلي — وهو خطأ بناء (build-breaking)
+ * لأن الاستيراد كان سيفشل فوراً في npm run build.
  *
- * Requires `VITE_VAPID_PUBLIC_KEY` and the `push_subscriptions` table
- * (one row per profile, keyed by `user_id`). Subscriptions are bound to the
- * profile of the role the user is currently acting as, because one account
- * can hold both a volunteer and a requester profile.
+ * التنفيذ أدناه يفترض:
+ * - وجود VITE_VAPID_PUBLIC_KEY في متغيرات البيئة.
+ * - وجود جدول push_subscriptions (مذكور في تقرير Supabase الأصلي)
+ *   بأعمدة تخزّن اشتراك الـ Push Subscription لكل مستخدم.
+ * يجب مراجعته مقابل مخطط قاعدة البيانات الفعلي بعد توفير ملف المايجريشن الكامل.
  */
 
 function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
@@ -22,7 +26,7 @@ function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
   return output.buffer as ArrayBuffer;
 }
 
-export async function registerPushNotifications(role: UserRole): Promise<boolean> {
+export async function registerPushNotifications(): Promise<boolean> {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     console.warn('Push notifications are not supported in this browser.');
     return false;
@@ -52,19 +56,9 @@ export async function registerPushNotifications(role: UserRole): Promise<boolean
     const userId = sessionData.session?.user.id;
     if (!userId) return false;
 
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('auth_user_id', userId)
-      .eq('role', role)
-      .eq('is_active', true)
-      .limit(1)
-      .maybeSingle();
-    if (profileError || !profile) return false;
-
     const { error } = await supabase.from('push_subscriptions').upsert(
       {
-        user_id: profile.id,
+        user_id: userId,
         subscription: JSON.parse(JSON.stringify(subscription.toJSON())),
       },
       { onConflict: 'user_id' }
@@ -73,38 +67,6 @@ export async function registerPushNotifications(role: UserRole): Promise<boolean
     return !error;
   } catch (err) {
     console.error('Push registration failed:', err);
-    return false;
-  }
-}
-
-export async function notifyTripAccepted(tripId: string): Promise<boolean> {
-  try {
-    const { error } = await supabase.functions.invoke('notify-trip-accepted', {
-      body: { trip_id: tripId },
-    });
-    if (error) {
-      console.error('Acceptance notification request failed:', error);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.error('Acceptance notification request failed:', err);
-    return false;
-  }
-}
-
-export async function notifyAssistanceAccepted(assistanceId: string): Promise<boolean> {
-  try {
-    const { error } = await supabase.functions.invoke('notify-assistance-accepted', {
-      body: { assistance_id: assistanceId },
-    });
-    if (error) {
-      console.error('Assistance acceptance notification request failed:', error);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.error('Assistance acceptance notification request failed:', err);
     return false;
   }
 }
