@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>شَهْم — تصميم الواجهة</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--page:#dfe8e2;--pink:#101f17;--sub:#3f4942;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page:#0c1410;--pink:#eaf3ed;--sub:#9db0a5}}
+:root[data-theme="dark"]{--page:#0c1410;--pink:#eaf3ed;--sub:#9db0a5}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box;margin:0}
+body{background:var(--page);color:var(--pink);font-family:'IBM Plex Sans Arabic','Noto Sans Arabic',sans-serif;padding:24px 12px;text-align:center}
+.t{font-size:18px;font-weight:700;margin-bottom:18px}.cap{font-size:13px;font-weight:600;color:var(--sub);margin-bottom:8px}
+.row{display:flex;gap:24px;justify-content:center;flex-wrap:wrap}
+/* app tokens (from index.css / tailwind.config.js) */
+.phone{--surface:#ecfef1;--low:#e6f8ec;--high:#dbece0;--pri:#005131;--btn:#146b44;--mint:#8df5b7;--txt:#101f17;--mut:#3f4942;
+width:340px;height:720px;background:var(--surface);color:var(--txt);border-radius:32px;border:6px solid #111;overflow:hidden;display:flex;flex-direction:column;text-align:center}
+.sb{background:var(--pri);color:#fff;height:26px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;font-size:11px;direction:ltr;flex:none}
+.hd{border-bottom:1px solid rgba(20,107,68,.06);box-shadow:0 1px 8px rgba(20,107,68,.04);padding:12px 16px;display:flex;flex-direction:column;align-items:center;gap:2px;flex:none}
+.hd svg.b{width:64px;height:64px}.hd.sm svg.b{width:44px;height:44px}
+.nm{font-size:20px;font-weight:700;color:var(--pri)}.hi{font-size:13px;color:var(--mut)}.slg{font-size:18px;font-weight:700;color:var(--pri)}.ds{font-size:11px;color:var(--mut)}
+.pills{display:flex;gap:8px;margin-top:6px}
+.pill{min-width:76px;text-align:center;border-radius:999px;padding:3px 12px;font-size:12px;font-weight:600}
+.p1{background:#E6F4ED;color:#146B44}.p2{background:var(--mint);color:var(--pri)}
+.body{flex:1;padding:14px 16px;display:flex;flex-direction:column;gap:12px;min-height:0}
+.card{border:1px solid rgba(20,107,68,.06);border-radius:1rem;background:#fff;box-shadow:0 4px 20px -2px rgba(20,107,68,.06),0 2px 6px -1px rgba(36,51,43,.04);padding:14px}
+.soft{border-radius:1rem;background:var(--low);border:1px solid rgba(20,107,68,.08);padding:12px 14px}
+.quote{font-size:13px;line-height:1.9;font-weight:600;color:var(--pri)}
+.pt{display:flex;align-items:center;gap:12px;padding:8px 0;text-align:right}.pt+.pt{border-top:1px dashed #cfe3d6}
+.dot{width:12px;height:12px;border-radius:50%;border:3px solid #1E8E5A;flex:none}.dot.e{background:var(--btn);border-color:var(--btn)}
+.pt small{display:block;color:var(--mut);font-size:11px}.pt b{font-size:14px;font-weight:600}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seg div{height:40px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:12px;font-weight:600;border-radius:8px;border:1px solid #8A949E;background:#fff;color:#1F2430}
+.seg .on{background:var(--btn);border-color:var(--btn);color:#fff}
+.btn{min-height:52px;border-radius:999px;background:var(--btn);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;text-align:center;box-shadow:0 6px 16px rgba(20,107,68,.2)}
+.btn2{height:44px;border-radius:999px;background:var(--high);color:var(--pri);font-weight:600;font-size:14px;display:flex;align-items:center;justify-content:center;text-align:center}
+.sp{flex:1}
+.nav{flex:none;height:72px;display:flex;background:#fff;border-top:1px solid rgba(20,107,68,.12)}
+.nav div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:12px;color:var(--mut)}
+.nav div+div{border-inline-start:1px solid rgba(20,107,68,.08)}
+.nav .on{color:var(--pri);font-weight:700;background:var(--low)}
+.nav svg,.ck svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav .on svg{stroke-width:2.4}
+.load{flex:1;display:flex;align-items:center;justify-content:center}
+.ck{position:relative;width:160px;height:160px;display:flex;align-items:center;justify-content:center}
+.r1,.r2{position:absolute;inset:12px;border-radius:50%;border:8px solid var(--high)}
+.r2{border-color:var(--mint);border-top-color:transparent;animation:sp 1s linear infinite}
+.c{width:80px;height:80px;border-radius:50%;background:var(--pri);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(0,81,49,.25)}
+.c svg{width:36px;height:36px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.r2{animation-duration:4s}}
+.st{display:inline-block;background:rgba(141,245,183,.55);color:var(--pri);font-size:12px;font-weight:700;padding:4px 12px;border-radius:999px;margin-bottom:8px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:10px 0;font-size:13px;text-align:right}.kv+.kv{border-top:1px dashed #cfe3d6}
+.kv span{color:var(--mut);flex:none}.kv b{font-weight:600}
+.row{align-items:flex-start}.phone.tall{height:auto}
+.seg3{grid-template-columns:repeat(3,1fr)}.seg3 div{padding:0 4px;line-height:1.3}
+.lbl{display:block;font-size:13px;font-weight:600;color:#1F2430;margin-bottom:6px;text-align:right}
+.box{min-height:40px;border:1px solid #8A949E;border-radius:12px;background:#fff;padding:9px 12px;font-size:13px;text-align:right;color:#1F2430;display:flex;align-items:center;justify-content:space-between}
+.box.ph{color:#6b7280;align-items:flex-start;min-height:64px}
+.ack{display:flex;gap:8px;align-items:flex-start;background:#F7F8F9;border:1px solid rgba(138,148,158,.3);border-radius:12px;padding:10px;font-size:11px;line-height:1.7;text-align:right}
+.ack i{flex:none;width:16px;height:16px;border-radius:4px;border:2px solid #146B44;margin-top:2px}
+.note{font-size:11px;color:var(--mut);margin-top:8px;line-height:1.7}
+.fm{display:flex;flex-direction:column;gap:12px}
+.ftitle{font-size:16px;font-weight:700;color:#1F2430;text-align:right}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1E8E5A"/><stop offset="1" stop-color="#146B44"/></linearGradient>
+<linearGradient id="g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E6F4ED"/><stop offset="1" stop-color="#C2E6D4"/></linearGradient></defs>
+<symbol id="logo" viewBox="0 0 120 120"><circle cx="60" cy="60" r="56" fill="url(#g2)"/><circle cx="60" cy="60" r="48" fill="#fff"/><path d="M60 28C64 36 76 46 76 58C76 67.5 68.8 75 60 75C51.2 75 44 67.5 44 58C44 46 56 36 60 28Z" fill="url(#g1)"/><circle cx="60" cy="56" r="6" fill="#fff"/><path d="M36 70C42 82 50 88 60 88C70 88 78 82 84 70C80 76 71 82 60 82C49 82 40 76 36 70Z" fill="#146B44"/></symbol>
+<symbol id="car" viewBox="0 0 24 24"><path d="m21 8-2 2-1.5-3.7A2 2 0 0 0 15.6 5H8.4a2 2 0 0 0-1.9 1.3L5 10 3 8"/><rect x="3" y="10" width="18" height="8" rx="2"/><path d="M7 14h.01M17 14h.01M5 18v2M19 18v2"/></symbol>
+<symbol id="book" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></symbol>
+<symbol id="user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></symbol>
+<symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+</svg>
+
+<h1 class="t">شَهْم — تصميم الواجهة</h1>
+<div class="row">
+
+<div><div class="cap">١ · الرئيسية</div><div class="phone tall">
+<div class="sb"><span>57% ▮</span><span>VoLTE ▂▄▆ 4G</span></div>
+<div class="hd"><svg class="b"><use href="#logo"/></svg><div class="nm">شَهْم</div>
+<div class="hi">أهلاً بك يا أحمد في شهم</div><div class="slg">الناس للناس</div><div class="ds">منصة تكافلية غير ربحية لنقل الحالات العلاجية</div>
+<div class="pills"><span class="pill p1">مستفيد</span><span class="pill p2">متصل</span></div></div>
+<div class="body">
+<div class="soft"><div class="quote">«من سار بين الناس جابراً للخواطر أدركه الله في جوف المخاطر.»</div></div>
+<div class="card fm"><div class="ftitle">طلب رحلة</div>
+<div style="text-align:right"><span class="lbl">مسار الرحلة</span>
+<div class="pt"><span class="dot"></span><div><small>هتتحرك منين؟</small><b>مدينة نصر، القاهرة</b></div></div>
+<div class="pt"><span class="dot e"></span><div><small>هتروح فين؟</small><b>مستشفى قصر العيني</b></div></div></div>
+<div><span class="lbl">الطلب ده لـ:</span><div class="seg seg3"><div class="on">أنا</div><div>شخص تحت رعايتي</div><div>مرافقة شخص</div></div></div>
+<div><span class="lbl">عدد الأفراد</span><div class="box"><span>1</span><span>⌄</span></div></div>
+<div><span class="lbl">ملاحظات</span><div class="box ph">مثال: كرسي متحرك، عكاز، شنط، احتياجات خاصة...</div></div>
+<div class="ack"><i></i><span>أقر بأن هذا الطلب لحالة علاجية حقيقية، وأتحمل المسؤولية الكاملة عن دقة البيانات المُدخلة.</span></div>
+<div class="btn">اطلب رحلة الآن</div></div>
+<div class="btn2">تسجيل الخروج</div></div>
+<div class="nav"><div class="on"><svg><use href="#car"/></svg>المشاوير</div><div><svg><use href="#book"/></svg>الإرشادات</div><div><svg><use href="#user"/></svg>حسابي</div></div>
+</div></div>
+
+<div><div class="cap">٢ · طلب عون</div><div class="phone">
+<div class="sb"><span>57% ▮</span><span>VoLTE ▂▄▆ 4G</span></div>
+<div class="hd sm"><svg class="b"><use href="#logo"/></svg><div class="nm" style="font-size:16px">شَهْم</div></div>
+<div class="load"><div class="ck"><div class="r1"></div><div class="r2"></div><div class="c"><svg><use href="#clock"/></svg></div></div></div>
+<div class="nav"><div class="on"><svg><use href="#car"/></svg>المشاوير</div><div><svg><use href="#book"/></svg>الإرشادات</div><div><svg><use href="#user"/></svg>حسابي</div></div>
+</div></div>
+
+<div><div class="cap">٣ · بعد إرسال الطلب</div><div class="phone">
+<div class="sb"><span>57% ▮</span><span>VoLTE ▂▄▆ 4G</span></div>
+<div class="hd sm"><svg class="b"><use href="#logo"/></svg><div class="nm" style="font-size:16px">شَهْم</div><div class="hi">أهلاً بك يا أحمد في شهم</div></div>
+<div class="body">
+<div class="soft"><div class="quote">«من سار بين الناس جابراً للخواطر أدركه الله في جوف المخاطر.»</div></div>
+<div class="card"><span class="st">بانتظار شهم</span>
+<div class="kv"><span>من</span><b>مدينة نصر، القاهرة</b></div><div class="kv"><span>إلى</span><b>مستشفى قصر العيني</b></div>
+<div class="kv"><span>الطلب لـ</span><b>أنا</b></div><div class="kv"><span>عدد الأفراد</span><b>2</b></div><div class="kv"><span>ملاحظات</span><b>كرسي متحرك</b></div>
+<div class="note">طلبك ظاهر للشهم القريب فقط، وبيانات التواصل محمية حتى القبول.</div></div>
+<div class="sp"></div><div class="btn2">إلغاء الطلب</div></div>
+<div class="nav"><div class="on"><svg><use href="#car"/></svg>المشاوير</div><div><svg><use href="#book"/></svg>الإرشادات</div><div><svg><use href="#user"/></svg>حسابي</div></div>
+</div></div>
+
+</div></body></html>
