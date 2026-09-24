@@ -8,7 +8,7 @@ export const EmptyVolunteersFeed: React.FC = () => {
 
   const handleEnablePush = async () => {
     setLoading(true);
-    const success = await registerPushNotifications();
+    const success = await registerPushNotifications('volunteer');
     setLoading(false);
     if (success) setPushEnabled(true);
   };

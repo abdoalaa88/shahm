@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { translateApiError } from '../../lib/apiErrors';
 import { AlertTriangle, X, Loader2 } from 'lucide-react';
 
 interface ReportModalProps {
@@ -42,7 +43,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     setLoading(false);
 
     if (error) {
-      setErrorMsg(error.message);
+      setErrorMsg(translateApiError(error.message));
     } else {
       setReason('');
       onSuccess();

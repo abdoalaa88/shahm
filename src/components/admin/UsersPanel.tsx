@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, Profile } from '../../lib/supabase';
+import { translateApiError } from '../../lib/apiErrors';
 import { Users, RefreshCw, Loader2, Trash2, Eye, ShieldCheck, X, CheckCircle } from 'lucide-react';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -16,7 +17,7 @@ export const UsersPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
-  const [details, setDetails] = useState<{ id: string; data: any } | null>(null);
+  const [details, setDetails] = useState<{ id: string; data: unknown } | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
 
   const fetchUsers = async () => {
@@ -39,7 +40,7 @@ export const UsersPanel: React.FC = () => {
     const { data, error } = await supabase.rpc('get_user_full_details', { p_target_profile_id: userId });
     setDetailsLoading(false);
     if (error) {
-      alert(error.message);
+      alert(translateApiError(error.message));
       setDetails(null);
       return;
     }
@@ -63,7 +64,7 @@ export const UsersPanel: React.FC = () => {
       setActionMsg('تم حذف الحساب نهائياً.');
       setUsers((prev) => prev.filter((u) => u.id !== userId));
     } else {
-      alert(error.message);
+      alert(translateApiError(error.message));
     }
   };
 

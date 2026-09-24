@@ -1,16 +1,12 @@
-import { supabase } from './supabase';
+import { supabase, type UserRole } from './supabase';
 
 /**
- * ملاحظة إصلاح: كان مكوّن StateViews.tsx يستورد
- * `registerPushNotifications` من './lib/push' لكن هذا الملف
- * لم يكن موجوداً إطلاقاً في التسليم الأصلي — وهو خطأ بناء (build-breaking)
- * لأن الاستيراد كان سيفشل فوراً في npm run build.
+ * Web Push helpers.
  *
- * التنفيذ أدناه يفترض:
- * - وجود VITE_VAPID_PUBLIC_KEY في متغيرات البيئة.
- * - وجود جدول push_subscriptions (مذكور في تقرير Supabase الأصلي)
- *   بأعمدة تخزّن اشتراك الـ Push Subscription لكل مستخدم.
- * يجب مراجعته مقابل مخطط قاعدة البيانات الفعلي بعد توفير ملف المايجريشن الكامل.
+ * Requires `VITE_VAPID_PUBLIC_KEY` and the `push_subscriptions` table
+ * (one row per profile, keyed by `user_id`). Subscriptions are bound to the
+ * profile of the role the user is currently acting as, because one account
+ * can hold both a volunteer and a requester profile.
  */
 
 function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
@@ -26,7 +22,7 @@ function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
   return output.buffer as ArrayBuffer;
 }
 
-export async function registerPushNotifications(): Promise<boolean> {
+export async function registerPushNotifications(role: UserRole): Promise<boolean> {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     console.warn('Push notifications are not supported in this browser.');
     return false;
@@ -60,6 +56,7 @@ export async function registerPushNotifications(): Promise<boolean> {
       .from('profiles')
       .select('id')
       .eq('auth_user_id', userId)
+      .eq('role', role)
       .eq('is_active', true)
       .limit(1)
       .maybeSingle();
@@ -92,6 +89,22 @@ export async function notifyTripAccepted(tripId: string): Promise<boolean> {
     return true;
   } catch (err) {
     console.error('Acceptance notification request failed:', err);
+    return false;
+  }
+}
+
+export async function notifyAssistanceAccepted(assistanceId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.functions.invoke('notify-assistance-accepted', {
+      body: { assistance_id: assistanceId },
+    });
+    if (error) {
+      console.error('Assistance acceptance notification request failed:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Assistance acceptance notification request failed:', err);
     return false;
   }
 }

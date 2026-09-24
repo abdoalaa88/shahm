@@ -1,3 +1,5 @@
+> **Historical snapshot (2026-09-17).** Written before the migrations under `supabase/migrations/` were applied; kept for reference. The migration files and `docs/ARCHITECTURE.md` are the source of truth.
+
 # Supabase Schema Gap Analysis
 
 Audit date: 2026-09-17

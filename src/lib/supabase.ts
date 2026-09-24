@@ -16,7 +16,7 @@ export type UserRole =
   | 'analytics_viewer'
   | 'super_admin';
 
-export type TripStatus = 'pending' | 'accepted' | 'completed' | 'cancelled';
+export type TripStatus = 'pending' | 'accepted' | 'completed' | 'cancelled' | 'expired';
 export type RequesterRelation = 'patient' | 'guardian' | 'companion';
 
 export interface Profile {
@@ -43,6 +43,7 @@ export interface PublicTrip {
   accepted_at?: string;
   completed_at?: string;
   scheduled_at?: string | null;
+  expires_at?: string | null;
   passenger_count: number;
   special_notes?: string | null;
 }
@@ -78,6 +79,31 @@ export interface ContactCardData {
   patient_condition?: string | null;
   passenger_count?: number;
   special_notes?: string | null;
+}
+
+export interface AssistanceContactData {
+  assistance_id: string;
+  requester_id: string;
+  requester_first_name: string;
+  requester_phone: string;
+  issue_type: string;
+  description: string;
+  lat: number;
+  lng: number;
+  distance_km?: number;
+}
+
+export type AssistanceRequestStatus = 'pending' | 'accepted' | 'completed' | 'cancelled' | 'expired';
+
+export interface MyAssistanceRequest {
+  assistance_id: string;
+  issue_type: string;
+  description: string;
+  status: AssistanceRequestStatus;
+  created_at: string;
+  helper_id: string | null;
+  helper_first_name: string | null;
+  helper_phone: string | null;
 }
 
 export interface Report {

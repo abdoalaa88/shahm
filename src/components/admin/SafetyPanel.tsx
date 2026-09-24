@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, Report } from '../../lib/supabase';
+import { translateApiError } from '../../lib/apiErrors';
 import { ShieldAlert, CheckCircle, Ban, RefreshCw, Loader2 } from 'lucide-react';
 
 export const SafetyPanel: React.FC = () => {
@@ -34,7 +35,7 @@ export const SafetyPanel: React.FC = () => {
       setActionMsg('تم تعليق الحساب وتوثيق الإجراء بنجاح.');
       fetchReports();
     } else {
-      alert(error.message);
+      alert(translateApiError(error.message));
     }
   };
 
