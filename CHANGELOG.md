@@ -19,27 +19,6 @@
   `get_nearby_assistance_requests()` now really sorts nearest-first (it was ordering by the
   OUT parameter `distance_km`, i.e. by creation time).
 
-## Unreleased — UI redesign
-
-- **Header:** centred layout — logo, "شَهْم", "أهلاً بك يا {الاسم} في شهم", bold "الناس للناس", short
-  description, then the role and "متصل" pills. The header no longer sticks to the top (only the admin tab bar
-  does). Sign-out stays in the header for admins and moves to the bottom of the home tabs for everyone else
-  (it was already in "حسابي").
-- **Quote:** «من سار بين الناس جابراً للخواطر أدركه الله في جوف المخاطر.» (`QuoteCard`) replaces the old
-  intro cards ("سلامتك أولاً…", "أهلاً بك يا بطل الخير") and the "نوع الطلب / فوري / رحلة" stat card in the
-  trip details sheet, so there is a single greeting.
-- **Bottom nav:** the `stitch-bottom-nav` class had no CSS, so the bar was transparent and overlapped content.
-  It now has a solid background, a top border and divided, centred sections.
-- **Single details card:** requester trip card (pending / accepted / expired) shows one `TripSummary` card —
-  from, to, who it's for, passenger count, notes — instead of repeated text and a duplicate shield card. The
-  volunteer's active-trip card lists the path once (the duplicate start/destination lines are gone) together
-  with passenger count and notes.
-- **"طلب عون":** while pending, the tab shows only the spinning-ring loader (`PendingLoader`) and the cancel
-  button.
-- Buttons: text centred everywhere; the trip form's submit button uses the same pill style as the rest of
-  the app. Status-bar / PWA `theme_color` is now the dark green `#005131`.
-- `design/shahm-ui-mockup.html` is the approved visual reference.
-
 ## Unreleased — Cleanup
 
 - Removed dead code: `InstallModal.tsx` (never rendered, had a stray `console.log`) and

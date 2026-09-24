@@ -1,0 +1,21 @@
+{
+  "name": "شهم",
+  "short_name": "شهم",
+  "description": "مجتمع يساند بعضه في الطريق، بمحبة وخصوصية وأمان.",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ecfef1",
+  "theme_color": "#005131",
+  "icons": [
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

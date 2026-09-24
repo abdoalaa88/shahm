@@ -516,7 +516,6 @@ export const App: React.FC = () => {
         canInstall={canInstall}
         onInstall={install}
         onSignOut={handleSignOut}
-        showSignOut={Boolean(isAdmin)}
       >
         {isAdmin && (
           <AdminTabBar
@@ -587,6 +586,7 @@ export const App: React.FC = () => {
         {showVolunteerView && activeAppTab === 'trips' && (
           <VolunteerHome
             role={profile?.role}
+            onOpenAssistance={() => setActiveAppTab('request')}
             raceConditionDetected={raceConditionDetected}
             onDismissRaceCondition={() => setRaceConditionDetected(false)}
             activeAssistanceHelp={activeAssistanceHelp}
@@ -623,12 +623,6 @@ export const App: React.FC = () => {
           />
         )}
 
-        {!isAdmin && activeAppTab !== 'account' && (
-          <button type="button" onClick={handleSignOut} className="w-full rounded-full bg-[#dbece0] py-3 text-center text-sm font-semibold text-[#005131] transition-colors hover:bg-[#cdded2]">
-            تسجيل الخروج
-          </button>
-        )}
-
         <ReportModal
           tripId={activeVolunteerTripData?.trip_id || activeRequesterTrip?.id}
           reportedProfileId={activeVolunteerTripData?.requester_id}
@@ -637,7 +631,7 @@ export const App: React.FC = () => {
           onSuccess={() => setReportSuccess(true)}
         />
       </main>
-      {!isAdmin && <BottomNav active={activeAppTab} onChange={setActiveAppTab} showRequest={profile?.role === 'volunteer'} />}
+      {!isAdmin && <BottomNav active={activeAppTab === 'request' ? 'trips' : activeAppTab} onChange={setActiveAppTab} />}
     </div>
   );
 };

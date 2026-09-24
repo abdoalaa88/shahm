@@ -8,10 +8,11 @@ import { LocationPrompt } from './LocationPrompt';
 import { NearbyAssistanceList } from './NearbyAssistanceList';
 import { PendingTripsList } from './PendingTripsList';
 import { TripDetailsSheet } from './TripDetailsSheet';
-import { QuoteCard } from '../../components/common/QuoteCard';
+import { ArrowLeft, Handshake } from 'lucide-react';
 
 type VolunteerHomeProps = {
   role: UserRole | undefined;
+  onOpenAssistance: () => void;
   raceConditionDetected: boolean;
   onDismissRaceCondition: () => void;
   activeAssistanceHelp: AssistanceContactData | null;
@@ -38,6 +39,7 @@ type VolunteerHomeProps = {
 
 export const VolunteerHome: React.FC<VolunteerHomeProps> = ({
   role,
+  onOpenAssistance,
   raceConditionDetected,
   onDismissRaceCondition,
   activeAssistanceHelp,
@@ -62,10 +64,21 @@ export const VolunteerHome: React.FC<VolunteerHomeProps> = ({
   onCloseTripDetails,
 }) => (
   <>
-    <QuoteCard />
-    {raceConditionDetected && (
-      <RaceConditionToast onClose={onDismissRaceCondition} />
+    {role === 'volunteer' && (
+      <button
+        type="button"
+        onClick={onOpenAssistance}
+        className="stitch-soft-card flex min-h-[4.5rem] w-full items-center justify-between gap-3 px-4 py-3 text-center transition-colors hover:bg-[#dbece0]"
+      >
+        <span className="flex min-w-0 flex-1 flex-col items-center">
+          <strong className="text-sm text-[#005131]">طلب عون على الطريق</strong>
+          <span className="mt-1 text-xs leading-5 text-[#53645a]">اطلب مساعدة قريبة لو احتجتها</span>
+        </span>
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#146b44] text-white"><Handshake className="h-5 w-5" /></span>
+        <ArrowLeft className="h-4 w-4 shrink-0 text-[#005131]" aria-hidden="true" />
+      </button>
     )}
+    {raceConditionDetected && <RaceConditionToast onClose={onDismissRaceCondition} />}
 
     {activeAssistanceHelp && (
       <ActiveAssistanceHelpCard
@@ -84,31 +97,18 @@ export const VolunteerHome: React.FC<VolunteerHomeProps> = ({
         onReport={onReport}
       />
     ) : role === 'volunteer' && volunteerLocationStatus !== 'ready' ? (
-      <LocationPrompt
-        status={volunteerLocationStatus}
-        error={volunteerLocationError}
-        onRequestLocation={onRequestLocation}
-      />
+      <LocationPrompt status={volunteerLocationStatus} error={volunteerLocationError} onRequestLocation={onRequestLocation} />
     ) : (
       <div className="space-y-3">
         {nearbyAssistance.length > 0 && (
-          <NearbyAssistanceList
-            requests={nearbyAssistance}
-            acceptingAssistanceId={acceptingAssistanceId}
-            onAcceptAssistance={onAcceptAssistance}
-          />
+          <NearbyAssistanceList requests={nearbyAssistance} acceptingAssistanceId={acceptingAssistanceId} onAcceptAssistance={onAcceptAssistance} />
         )}
         <PendingTripsList pendingTrips={pendingTrips} onSelectTrip={onSelectTrip} />
       </div>
     )}
 
     {selectedTripDetails && (
-      <TripDetailsSheet
-        trip={selectedTripDetails}
-        acceptingTripId={acceptingTripId}
-        onAccept={onAcceptTrip}
-        onClose={onCloseTripDetails}
-      />
+      <TripDetailsSheet trip={selectedTripDetails} acceptingTripId={acceptingTripId} onAccept={onAcceptTrip} onClose={onCloseTripDetails} />
     )}
   </>
 );

@@ -115,7 +115,7 @@ export const TripRequestForm: React.FC<TripRequestFormProps> = ({
     <button
       disabled={!hasOrigin || !hasDestination || !ackChecked || createTripLoading}
       onClick={onCreateTrip}
-      className="stitch-primary-button flex w-full items-center justify-center gap-2 px-4 text-center text-base"
+      className="w-full h-[52px] bg-[#146B44] disabled:opacity-40 active:bg-[#0F5636] text-white font-semibold rounded-xl text-base transition-colors flex items-center justify-center gap-2"
     >
       {createTripLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'اطلب رحلة الآن'}
     </button>

@@ -4,7 +4,6 @@ import type { PlaceSelection } from '../../lib/appTypes';
 import { RequesterTripCard } from './RequesterTripCard';
 import { TripRequestForm } from './TripRequestForm';
 import { CheckCircle2 } from 'lucide-react';
-import { QuoteCard } from '../../components/common/QuoteCard';
 
 type RequesterHomeProps = {
   reportSuccess: boolean;
@@ -56,7 +55,6 @@ export const RequesterHome: React.FC<RequesterHomeProps> = ({
   onCreateTrip,
 }) => (
   <>
-    <QuoteCard />
     {reportSuccess && (
       <div className="p-3 bg-[#E6F4ED] text-[#146B44] text-xs rounded-xl flex items-center gap-2">
         <CheckCircle2 className="w-4 h-4 shrink-0" />

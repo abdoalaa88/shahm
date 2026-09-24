@@ -74,7 +74,10 @@ label {
   text-wrap: pretty;
 }
 
-button,
+button {
+  text-align: center;
+}
+
 input,
 textarea,
 select {
@@ -103,10 +106,15 @@ input::placeholder {
 }
 
 .stitch-header {
-  background: color-mix(in srgb, var(--shahm-surface) 88%, transparent);
+  background: var(--shahm-primary);
   border-bottom: 1px solid rgba(20, 107, 68, 0.06);
   box-shadow: 0 1px 8px rgba(20, 107, 68, 0.04);
-  backdrop-filter: blur(18px);
+}
+
+.stitch-bottom-nav {
+  background: #fff;
+  border-top: 1px solid rgba(20, 107, 68, 0.12);
+  box-shadow: 0 -6px 20px rgba(16, 31, 23, 0.06);
 }
 
 .stitch-card {
@@ -120,12 +128,6 @@ input::placeholder {
   border-radius: 1rem;
   background: var(--shahm-surface-low);
   border: 1px solid rgba(20, 107, 68, 0.08);
-}
-
-.stitch-bottom-nav {
-  background: #fff;
-  border-top: 1px solid rgba(20, 107, 68, 0.12);
-  box-shadow: 0 -4px 16px rgba(20, 107, 68, 0.06);
 }
 
 .stitch-primary-button {
