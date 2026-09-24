@@ -96,7 +96,7 @@ begin
         cos(radians(p_lat)) * cos(radians(l.origin_lat))
         * cos(radians(l.origin_lng) - radians(p_lng))
         + sin(radians(p_lat)) * sin(radians(l.origin_lat))
-      ))
+      )))
     )::numeric, 2)::double precision as distance_km
   from public.trips t
   join public.trip_locations l on l.trip_id = t.id

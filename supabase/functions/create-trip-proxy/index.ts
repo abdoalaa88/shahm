@@ -319,7 +319,4 @@ Deno.serve(async (request) => {
   return response(request, 201, {
     trip_id: tripId,
   });
-});🚌 جروب توصيل المدارس -
-6 أكتوبر
- (لأولياء الأمور والكباتن)
-https://chat.whatsapp.com/DA2ffYWwfQU32vBJAF3fjA?s=cl&p=a&ilr=0
+});
