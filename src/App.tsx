@@ -206,7 +206,6 @@ const hasMeaningfulLetters = (value: string, minimum = 2) => {
 export const App: React.FC = () => {
   const [sessionUser, setSessionUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
-  const [availableProfiles, setAvailableProfiles] = useState<any[]>([]);
   const [isOnline, setIsOnline] = useState(true);
   const isOnlineRef = useRef(true);
   const [presenceCounts, setPresenceCounts] = useState<{ shahm: number | null; patient: number | null }>({ shahm: null, patient: null });
@@ -470,8 +469,6 @@ export const App: React.FC = () => {
 
       if (error) throw error;
       if (activeUserId.current !== uid) return;
-      setAvailableProfiles(profileRows ?? []);
-
       const preferredRole =
         localStorage.getItem('shahm.pendingRole') ||
         pendingProfile?.role ||
@@ -801,12 +798,12 @@ export const App: React.FC = () => {
     void refreshPresenceCounts();
   };
 
-  const saveVolunteerRoutePreference = async (enabled = routeFilterEnabled) => {
+  const saveVolunteerRoutePreference = async (enabled = routeFilterEnabled, clearDestination = false) => {
     if (!profile?.id || (enabled && !routeDestination)) return false;
-    const areaLabel = routeDestination?.areaLabel.trim() ?? '';
-    const fullAddress = routeDestination?.fullAddress.trim() ?? '';
-    const lat = routeDestination?.lat;
-    const lng = routeDestination?.lng;
+    const areaLabel = clearDestination ? '' : (routeDestination?.areaLabel.trim() ?? '');
+    const fullAddress = clearDestination ? '' : (routeDestination?.fullAddress.trim() ?? '');
+    const lat = clearDestination ? null : routeDestination?.lat;
+    const lng = clearDestination ? null : routeDestination?.lng;
     // Match the Egypt coordinate constraints in volunteer_route_preferences.
     if (enabled && (!areaLabel || !fullAddress || !Number.isFinite(lat) || !Number.isFinite(lng)
       || lat! < 22 || lat! > 31.7 || lng! < 24.5 || lng! > 37)) {
@@ -820,10 +817,11 @@ export const App: React.FC = () => {
       const { error } = await supabase.from('volunteer_route_preferences').upsert({
         volunteer_profile_id: profile.id,
         enabled,
-        destination_label: enabled ? areaLabel : (areaLabel || null),
-        destination_address: enabled ? fullAddress : (fullAddress || null),
-        destination_lat: enabled ? lat : (lat ?? null),
-        destination_lng: enabled ? lng : (lng ?? null),
+        // Clearing the destination removes the persisted address and coordinates too.
+        destination_label: enabled ? areaLabel : clearDestination ? null : (areaLabel || null),
+        destination_address: enabled ? fullAddress : clearDestination ? null : (fullAddress || null),
+        destination_lat: enabled ? lat : clearDestination ? null : (lat ?? null),
+        destination_lng: enabled ? lng : clearDestination ? null : (lng ?? null),
         updated_at: new Date().toISOString(),
       }, { onConflict: 'volunteer_profile_id' });
       if (error) {
@@ -842,9 +840,17 @@ export const App: React.FC = () => {
       setRoutePreferenceSaving(false);
     }
     setRouteFilterEnabled(enabled);
-    setRoutePreferenceMessage(enabled ? 'تم حفظ وجهتك، وستظهر الطلبات الواقعة باتجاهها.' : 'تم إيقاف فلترة الطلبات حسب الوجهة.');
+    // Keep the modal clean after removal; the empty picker is the confirmation.
+    setRoutePreferenceMessage(clearDestination ? '' : enabled ? 'تم حفظ وجهتك، وستظهر الطلبات الواقعة باتجاهها.' : 'تم إيقاف فلترة الطلبات حسب الوجهة.');
     if (volunteerLocation) { void loadNearbyTrips(volunteerLocation); void loadNearbyAssistanceRequests(volunteerLocation); }
     return true;
+  };
+
+  const clearVolunteerRouteDestination = async () => {
+    const saved = await saveVolunteerRoutePreference(false, true);
+    if (!saved) return;
+    setRouteDestination(null);
+    setRouteFilterEnabled(false);
   };
 
 
@@ -2898,11 +2904,10 @@ export const App: React.FC = () => {
                 <button type="button" onClick={() => setShowRouteDestinationModal(false)} aria-label="إغلاق" className="grid h-10 w-10 place-items-center rounded-full bg-[#F3F7F4] text-[#6B7280]"><X className="h-5 w-5" /></button>
               </div>
               <p className="text-sm leading-6 text-[#53645a]">اختر وجهتك، وسنرتب لك المشاوير القريبة الواقعة في اتجاهها.</p>
-              {routeDestination && <div className="flex items-center gap-2 rounded-xl bg-[#E8F7EE] p-3 text-sm font-semibold text-[#08784B]"><MapPin className="h-4 w-4 shrink-0" />وجهتك الحالية: {routeDestination.areaLabel}</div>}
+              {routeDestination && <div className="flex items-center justify-between gap-2 rounded-xl bg-[#E8F7EE] p-3 text-sm font-semibold text-[#08784B]"><span className="flex min-w-0 items-center gap-2"><MapPin className="h-4 w-4 shrink-0" /><span className="truncate">وجهتك الحالية: {routeDestination.areaLabel}</span></span><button type="button" onClick={() => void clearVolunteerRouteDestination()} disabled={routePreferenceSaving} aria-label="حذف الوجهة الحالية" title="حذف الوجهة" className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/80 text-[#53645a] hover:bg-white disabled:opacity-50"><X className="h-4 w-4" /></button></div>}
               <LocationPicker label="وجهتك" placeholder="ابحث عن وجهتك" onSelect={(value) => { setRouteDestination(value); setRouteFilterEnabled(true); setRoutePreferenceMessage(''); }} />
               {routePreferenceMessage && <p role="status" className="rounded-xl bg-[#FCEAEA] p-3 text-xs text-[#B53A3A]">{routePreferenceMessage}</p>}
               <button type="button" disabled={routePreferenceSaving || !routeDestination} onClick={() => void (async () => { const saved = await saveVolunteerRoutePreference(true); if (saved) setShowRouteDestinationModal(false); })()} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#146B44] text-sm font-bold text-white shadow-md shadow-[#146B44]/20 disabled:opacity-50">{routePreferenceSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <><CheckCircle2 className="h-5 w-5" />حفظ الوجهة</>}</button>
-              {routeFilterEnabled && <button type="button" disabled={routePreferenceSaving} onClick={() => void (async () => { const saved = await saveVolunteerRoutePreference(false); if (saved) setShowRouteDestinationModal(false); })()} className="h-10 w-full rounded-xl border border-[#8A949E]/25 text-sm font-semibold text-[#6B7280]">عرض كل المشاوير بدون فلترة</button>}
             </section>
           </div>
         )}
@@ -2930,23 +2935,6 @@ export const App: React.FC = () => {
                 <div className="p-3 bg-[#E6F4ED] text-[#146B44] text-xs rounded-xl flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 shrink-0" />
                   <span>تم حفظ البيانات بنجاح.</span>
-                </div>
-              )}
-
-              {availableProfiles.filter((item) => item.role !== profile?.role).length > 0 && (
-                <div className="rounded-2xl border border-[#DCE8E0] bg-[#F8FBF9] p-4">
-                  <h3 className="text-sm font-bold text-[#173628]">التبديل بين أدوارك</h3>
-                  <p className="mt-1 text-xs leading-5 text-[#748078]">اختر الملف الذي تريد استخدامه بهذا الحساب.</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {availableProfiles.filter((item) => item.role !== profile?.role).map((item) => {
-                      const label = item.role === 'requester' ? 'طالب المساعدة' : item.role === 'volunteer' ? 'شهم' : 'إدارة';
-                      return <button key={item.id} type="button" onClick={() => {
-                        setProfile(item);
-                        setShowSettings(false);
-                        try { localStorage.setItem('shahm.activeProfileRole', item.role); } catch { /* optional preference */ }
-                      }} className="min-h-10 rounded-xl border border-[#BFD9C9] bg-white px-4 text-xs font-bold text-[#0B6742]">التحويل إلى {label}</button>;
-                    })}
-                  </div>
                 </div>
               )}
 
