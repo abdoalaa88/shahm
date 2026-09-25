@@ -32,23 +32,10 @@ $$;
 revoke all on function public.get_presence_counts() from public, anon;
 grant execute on function public.get_presence_counts() to authenticated;
 
-create or replace function public.get_nearby_assistance_volunteer_ids(p_assistance_id uuid)
-returns table (user_id uuid)
-language sql security definer set search_path = '' as $$
-  select vl.user_id
-  from public.assistance_requests a
-  join public.volunteer_locations vl on vl.updated_at >= now() - interval '180 minutes'
-  join public.profiles p on p.id = vl.user_id
-  where a.id = p_assistance_id and a.status = 'pending'
-    and p.role = 'volunteer'::public.user_role and p.is_active
-    and p.is_online and p.last_seen_at >= now() - interval '2 minutes'
-    and 6371 * acos(least(1.0, greatest(-1.0,
-      cos(radians(vl.lat)) * cos(radians(a.lat)) * cos(radians(a.lng) - radians(vl.lng))
-      + sin(radians(vl.lat)) * sin(radians(a.lat))
-    ))) <= 7;
-$$;
-revoke all on function public.get_nearby_assistance_volunteer_ids(uuid) from public, anon, authenticated;
-grant execute on function public.get_nearby_assistance_volunteer_ids(uuid) to service_role;
+-- The old assistance_requests table was removed when roadside assistance was
+-- split into captain_assistance_requests. No current client or Edge Function
+-- calls the old helper, so do not recreate a broken public RPC here.
+
 
 create table if not exists public.volunteer_route_preferences (
   volunteer_profile_id uuid primary key references public.profiles(id) on delete cascade,
