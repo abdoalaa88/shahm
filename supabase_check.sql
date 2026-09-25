@@ -2,6 +2,14 @@
 -- Run in the Supabase SQL editor after applying all migrations.
 -- Every query should return the expected result written in its comment.
 
+-- 0) Show the public table inventory. This baseline currently creates 11 tables;
+--    the following RLS query checks every table dynamically, even if the count changes.
+select count(*) as public_table_count,
+       array_agg(c.relname order by c.relname) as public_tables
+from pg_class c
+join pg_namespace n on n.oid = c.relnamespace
+where n.nspname = 'public' and c.relkind = 'r';
+
 -- 1) RLS must be enabled on every public table.  Expect: no rows.
 select c.relname as table_without_rls
 from pg_class c

@@ -5,9 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#005131" />
     <meta name="description" content="منصة شَهْم لمساندة أصحاب الأعطال على الطريق" />
-    <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/png" sizes="192x192" href="/shahm-app-icon-192-20260924.png" />
     <link rel="apple-touch-icon" href="/shahm-app-icon-192-20260924.png" />
+    <style>
+      html, body { margin: 0; min-height: 100%; background: #ecfef1; }
+      #startup-splash { position: fixed; inset: 0; z-index: 9999; display: grid; place-content: center; justify-items: center; gap: 18px; overflow: hidden; background: radial-gradient(ellipse at center, #fafffb 0, #ecfef1 72%); }
+      .startup-wordmark { color: #005131; font: 800 26px/1.4 system-ui, sans-serif; }
+    </style>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -17,6 +21,16 @@
     <title>شَهْم — مساعدة على الطريق</title>
   </head>
   <body>
+    <div id="startup-splash" role="status" aria-label="جارٍ فتح تطبيق شَهْم">
+      <div class="startup-track" aria-hidden="true">
+        <div class="startup-car">
+          <span class="startup-wheel startup-wheel-left"><i></i></span>
+          <span class="startup-wheel startup-wheel-right"><i></i></span>
+          <span class="startup-car-body"><img src="/shahm-logo-mark-20260924.png" alt="" /></span>
+        </div>
+      </div>
+      <span class="startup-wordmark" aria-hidden="true">شَهْم</span>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

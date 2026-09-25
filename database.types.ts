@@ -71,6 +71,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          auth_user_id: string
           created_at: string
           first_name: string
           id: string
@@ -87,9 +88,10 @@ export type Database = {
           vehicle_data_acknowledged_at: string | null
         }
         Insert: {
+          auth_user_id: string
           created_at?: string
           first_name: string
-          id: string
+          id?: string
           is_active?: boolean
           patient_age?: number | null
           patient_condition?: string | null
@@ -103,6 +105,7 @@ export type Database = {
           vehicle_data_acknowledged_at?: string | null
         }
         Update: {
+          auth_user_id?: string
           created_at?: string
           first_name?: string
           id?: string
@@ -123,18 +126,21 @@ export type Database = {
       push_subscriptions: {
         Row: {
           created_at: string
+          endpoint: string
           subscription: Json
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          endpoint: string
           subscription: Json
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          endpoint?: string
           subscription?: Json
           updated_at?: string
           user_id?: string
@@ -143,7 +149,7 @@ export type Database = {
           {
             foreignKeyName: "push_subscriptions_user_id_fkey"
             columns: ["user_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
