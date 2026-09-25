@@ -120,17 +120,21 @@ export const AdminConsole: React.FC<{ role: UserRole }> = ({ role }) => {
       setLoading(false);
       return;
     }
-    const [adminResult, pendingTripsResult, activeTripsResult, auditResult] = await Promise.all([
-      supabase.from('profiles').select('id', { count: 'exact', head: true }).in('role', ['ops_admin', 'verification_admin', 'analytics_viewer', 'super_admin']).eq('is_active', true),
-      supabase.from('trips').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-      supabase.from('trips').select('id', { count: 'exact', head: true }).eq('status', 'accepted'),
-      supabase.from('audit_logs').select('id,actor_id,action,target_profile_id,reason,created_at').order('created_at', { ascending: false }).limit(6),
+    // Counts and audit entries use narrow admin RPCs: table-wide grants would expose
+    // trip columns to every authenticated user even though RLS hides unrelated rows.
+    const [metricsResult, auditResult] = await Promise.all([
+      supabase.rpc('get_admin_dashboard_counts'),
+      supabase.rpc('get_admin_audit_logs', { p_limit: 6 }),
     ]);
-    const firstError = adminResult.error || pendingTripsResult.error || activeTripsResult.error || auditResult.error;
-    if (firstError) setError('تعذر تحميل بعض بيانات لوحة الإدارة. راجع صلاحية الدور وتطبيق ترحيلات قاعدة البيانات.');
-    setAdminCount(adminResult.count ?? 0);
-    setPendingTripCount(pendingTripsResult.count ?? 0);
-    setActiveTripCount(activeTripsResult.count ?? 0);
+    const firstError = metricsResult.error || auditResult.error;
+    if (firstError) {
+      console.error('Admin dashboard read failed:', firstError);
+      setError('تعذر تحميل بعض بيانات الإدارة. تحقق من صلاحية الإدارة ثم أعد المحاولة.');
+    }
+    const metrics = metricsResult.data?.[0];
+    setAdminCount(metrics?.active_admins ?? null);
+    setPendingTripCount(metrics?.pending_trips ?? null);
+    setActiveTripCount(metrics?.active_trips ?? null);
     setAuditRows((auditResult.data as AdminAudit[] | null) ?? []);
     setLoading(false);
   }, [role]);
@@ -152,12 +156,12 @@ export const AdminConsole: React.FC<{ role: UserRole }> = ({ role }) => {
   const loadAudit = useCallback(async () => {
     setLoading(true);
     setError('');
-    const { data, error: loadError } = await supabase
-      .from('audit_logs')
-      .select('id,actor_id,action,target_profile_id,reason,created_at')
-      .order('created_at', { ascending: false })
-      .limit(100);
-    if (loadError) setError('تعذر تحميل سجل الإدارة.');
+    // The RPC returns only audit fields and checks the operations-admin role server-side.
+    const { data, error: loadError } = await supabase.rpc('get_admin_audit_logs', { p_limit: 100 });
+    if (loadError) {
+      console.error('Admin audit log read failed:', loadError);
+      setError('تعذر تحميل سجل الإدارة. تحقق من صلاحية الإدارة ثم أعد المحاولة.');
+    }
     setAuditRows((data as AdminAudit[] | null) ?? []);
     setLoading(false);
   }, []);
@@ -165,12 +169,11 @@ export const AdminConsole: React.FC<{ role: UserRole }> = ({ role }) => {
   const loadTrips = useCallback(async () => {
     setLoading(true);
     setError('');
-    const { data, error: loadError } = await supabase.from('trips')
-      .select('id,requester_id,volunteer_id,origin_area_label,destination_area_label,status,requester_relation,created_at,accepted_at,completed_at')
-      .order('created_at', { ascending: false })
-      .limit(100);
+    // Use an admin-only RPC so the dashboard never needs broad SELECT on trips.
+    const { data, error: loadError } = await supabase.rpc('get_admin_trips', { p_limit: 100 });
     if (loadError) {
-      setError('تعذر تحميل سجل الرحلات. تأكد من أن ترحيلات الإدارة مطبقة.');
+      console.error('Admin trip list read failed:', loadError);
+      setError('تعذر تحميل سجل الرحلات. تحقق من صلاحية الإدارة ثم أعد المحاولة.');
       setTrips([]);
       setLoading(false);
       return;

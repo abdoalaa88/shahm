@@ -13,7 +13,6 @@ import {
   Car,
   CheckCircle2,
   XCircle,
-  ShieldCheck,
   TrendingUp,
   MapPin,
   Clock,
@@ -69,7 +68,7 @@ export const AnalyticsDashboard: React.FC = () => {
     return (
       <div className="p-16 text-center text-[#6B7280]">
         <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-[#146B44]" />
-        <p className="text-sm font-medium">جاري معالجة الإحصائيات التجميعية المشفرة...</p>
+        <p className="text-sm font-medium">جارٍ تحميل التقارير...</p>
       </div>
     );
   }
@@ -143,10 +142,6 @@ export const AnalyticsDashboard: React.FC = () => {
             <div className="flex items-center gap-1.5">
               <MapPin className="w-4 h-4 text-[#146B44]" />
               <h2 className="text-sm font-bold text-[#1F2430]">التوزيع الجغرافي للطلبات</h2>
-            </div>
-            <div className="flex items-center gap-1 text-[11px] text-[#146B44] bg-[#E6F4ED] px-2 py-0.5 rounded-full font-medium">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>مُعمّى (≥ 5 حالات)</span>
             </div>
           </div>
           <div className="h-56 w-full" dir="ltr">
