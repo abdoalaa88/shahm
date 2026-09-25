@@ -2031,8 +2031,8 @@ export const App: React.FC = () => {
           </section>
 
           <blockquote className="welcome-community">
-            <span className="community-ornament" aria-hidden="true"><HeartHandshake /></span>
             <p>﴿وَمَنْ أَحْيَاهَا فَكَأَنَّمَا أَحْيَا النَّاسَ جَمِيعًا﴾</p>
+            <span className="community-ornament" aria-hidden="true"><HeartHandshake /></span>
           </blockquote>
         </main>
 
