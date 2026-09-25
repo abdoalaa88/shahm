@@ -557,7 +557,7 @@ export const App: React.FC = () => {
         localStorage.getItem('shahm.activeProfileRole');
       const explicitlyRequestedRole =
         localStorage.getItem('shahm.pendingRole') || pendingProfile?.role;
-      // Admin entry resolves an existing privileged profile only; it never grants a role.
+      // Resolve an existing privileged role first for logo sign-in; never assign a role.
       const adminRolePriority: UserRole[] = [
         'super_admin', 'ops_admin', 'verification_admin', 'analytics_viewer',
       ];
@@ -565,7 +565,13 @@ export const App: React.FC = () => {
         ? adminRolePriority
             .map((role) => profileRows?.find((candidate) => candidate.role === role))
             .find(Boolean)
-        : profileRows?.find((candidate) => candidate.role === preferredRole);
+        : explicitlyRequestedRole
+          ? profileRows?.find((candidate) => candidate.role === explicitlyRequestedRole)
+          : adminRolePriority
+              .map((role) => profileRows?.find((candidate) => candidate.role === role))
+              .find(Boolean) ??
+            profileRows?.find((candidate) => candidate.role === preferredRole) ??
+            profileRows?.[0];
       const data =
         matchingProfile ??
         (explicitlyRequestedRole ? null : profileRows?.[0] ?? null);
@@ -1366,16 +1372,24 @@ export const App: React.FC = () => {
     setVehicleDetailsConfirmed(true);
   };
 
-  const handleGoogleLogin = async (role: UserRole) => {
+  const handleGoogleLogin = async (role?: UserRole) => {
     setErrorMessage(null);
-    setRoleSelection(role);
+    setRoleSelection(role ?? null);
 
     if (sessionUser) return;
 
     try {
-      localStorage.setItem('shahm.pendingRole', role);
+      if (role) {
+        localStorage.setItem('shahm.pendingRole', role);
+      } else {
+        // Logo sign-in is role-neutral; stale onboarding choices must not override the account role.
+        localStorage.removeItem('shahm.pendingRole');
+        localStorage.removeItem('shahm.pendingProfile');
+      }
     } catch {
-      setErrorMessage('تعذر حفظ الدور المختار. فعّل مساحة التخزين ثم أعد المحاولة.');
+      setErrorMessage(role
+        ? 'تعذر حفظ الدور المختار. فعّل مساحة التخزين ثم أعد المحاولة.'
+        : 'تعذر بدء تسجيل الدخول. فعّل مساحة التخزين ثم أعد المحاولة.');
       return;
     }
 
@@ -1966,11 +1980,19 @@ export const App: React.FC = () => {
 
         <main className="shahm-welcome">
           <section className="welcome-hero">
-            <div className="welcome-mark">
+            {/* Use the existing hero mark as a role-neutral sign-in entry point. */}
+            <button
+              type="button"
+              onClick={() => void handleGoogleLogin()}
+              disabled={authLoading}
+              aria-label="تسجيل الدخول إلى شهم"
+              title="تسجيل الدخول"
+              className="welcome-mark cursor-pointer disabled:cursor-wait"
+            >
               <span className="welcome-logo-spin" aria-hidden="true">
                 <img alt="" src="/shahm-logo-mark-20260924.png" />
               </span>
-            </div>
+            </button>
             <span className="welcome-kicker">خير الناس أنفعهم للناس</span>
             <h1>أهلاً بك في شَهْم</h1>
             <p className="welcome-description">توصيلة في طريقك .. تخفف رحلة علاج عن غيرك.</p>
@@ -2002,22 +2024,6 @@ export const App: React.FC = () => {
               >
                 <span className="welcome-role-icon"><CarFront aria-hidden="true" /></span>
                 <span className="welcome-role-copy"><strong>أرغب بالمساعدة</strong><small>كن شهمًا وساعد غيرك</small></span>
-                <span className="welcome-role-arrow" aria-hidden="true">←</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (sessionUser) {
-                    localStorage.setItem('shahm.pendingRole', 'super_admin');
-                    void fetchProfile(sessionUser.id);
-                  } else {
-                    void handleGoogleLogin('super_admin');
-                  }
-                }}
-                className="welcome-role-card welcome-admin-role-card"
-              >
-                <span className="welcome-role-icon"><ShieldCheck aria-hidden="true" /></span>
-                <span className="welcome-role-copy"><strong>دخول الإدارة</strong><small>للحسابات الإدارية المصرّح لها</small></span>
                 <span className="welcome-role-arrow" aria-hidden="true">←</span>
               </button>
             </div>
