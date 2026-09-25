@@ -37,7 +37,7 @@ grant execute on function public.get_presence_counts() to authenticated;
 -- calls the old helper, so do not recreate a broken public RPC here.
 
 
-reate table if not exists public.volunteer_route_preferences (
+create table if not exists public.volunteer_route_preferences (
   volunteer_profile_id uuid primary key references public.profiles(id) on delete cascade,
   enabled boolean not null default false,
   destination_label text,
