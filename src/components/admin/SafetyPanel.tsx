@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, Report } from '../../lib/supabase';
-import { ShieldAlert, CheckCircle, Ban, RefreshCw, Loader2 } from 'lucide-react';
+import { ShieldAlert, CheckCircle, Ban, RefreshCw, Loader2, Eye, CircleSlash, CheckCheck } from 'lucide-react';
 
-export const SafetyPanel: React.FC = () => {
+export const SafetyPanel: React.FC<{ canSuspend?: boolean }> = ({ canSuspend = true }) => {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -56,6 +56,22 @@ export const SafetyPanel: React.FC = () => {
     }
   };
 
+  const handleResolve = async (reportId: string, status: 'reviewed' | 'dismissed' | 'actioned') => {
+    setActionLoading(true);
+    const { error } = await supabase.rpc('resolve_report', { p_report_id: reportId, p_status: status });
+    setActionLoading(false);
+    if (error) {
+      setActionMsg('تعذر تحديث حالة البلاغ. تحقق من الترحيلات وصلاحية حسابك.');
+      return;
+    }
+    setActionMsg(status === 'actioned' ? 'تم اتخاذ إجراء وتوثيق البلاغ.' : status === 'dismissed' ? 'تم إغلاق البلاغ دون إجراء.' : 'تم تسجيل مراجعة البلاغ.');
+    await fetchReports();
+  };
+
+  const statusLabels: Record<string, string> = {
+    pending: 'قيد المراجعة', reviewed: 'تمت المراجعة', dismissed: 'مغلق دون إجراء', actioned: 'تم اتخاذ إجراء',
+  };
+
   return (
     <div className="max-w-2xl mx-auto p-4 space-y-4 text-right">
       <div className="flex items-center justify-between border-b pb-3">
@@ -107,7 +123,7 @@ export const SafetyPanel: React.FC = () => {
                 <span className={`px-2 py-0.5 rounded-md font-semibold ${
                   rep.status === 'pending' ? 'bg-[#FBEFDC] text-[#8F5A0A]' : 'bg-[#EEF0EF] text-[#4B5A52]'
                 }`}>
-                  {rep.status === 'pending' ? 'قيد المراجعة' : 'تم التعامل'}
+                  {statusLabels[rep.status] || rep.status}
                 </span>
                 <span className="text-[#6B7280]">{new Date(rep.created_at).toLocaleString('ar-EG')}</span>
               </div>
@@ -119,7 +135,7 @@ export const SafetyPanel: React.FC = () => {
 
               <p className="text-sm font-medium text-[#1F2430] bg-[#F7F8F9] p-3 rounded-xl">{rep.reason}</p>
 
-              {rep.reported_profile_id && (
+              {canSuspend && rep.reported_profile_id && (
                 <button
                   disabled={actionLoading}
                   onClick={() => handleSuspend(rep.reported_profile_id!)}
@@ -129,6 +145,12 @@ export const SafetyPanel: React.FC = () => {
                   تعليق حساب المستخدم المُبلَّغ عنه
                 </button>
               )}
+
+              {rep.status === 'pending' && <div className="flex flex-wrap gap-2 border-t border-[#EEF0EF] pt-3">
+                <button type="button" disabled={actionLoading} onClick={() => void handleResolve(rep.id, 'reviewed')} className="inline-flex min-h-9 items-center gap-1 rounded-lg bg-sky-50 px-3 text-xs font-semibold text-sky-800 disabled:opacity-50"><Eye className="h-3.5 w-3.5" />تمت المراجعة</button>
+                <button type="button" disabled={actionLoading} onClick={() => void handleResolve(rep.id, 'actioned')} className="inline-flex min-h-9 items-center gap-1 rounded-lg bg-[#E6F4ED] px-3 text-xs font-semibold text-[#146B44] disabled:opacity-50"><CheckCheck className="h-3.5 w-3.5" />اتخاذ إجراء</button>
+                <button type="button" disabled={actionLoading} onClick={() => void handleResolve(rep.id, 'dismissed')} className="inline-flex min-h-9 items-center gap-1 rounded-lg bg-[#F1F2F3] px-3 text-xs font-semibold text-[#53645a] disabled:opacity-50"><CircleSlash className="h-3.5 w-3.5" />إغلاق البلاغ</button>
+              </div>}
             </div>
           ))}
         </div>

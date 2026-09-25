@@ -26,25 +26,36 @@ export const AnalyticsDashboard: React.FC = () => {
   const [geoStats, setGeoStats] = useState<any[]>([]);
   const [peakHours, setPeakHours] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const loadData = async () => {
     setLoading(true);
+    setErrorMessage('');
     try {
       const [
-        { data: kpiData },
-        { data: geoData },
-        { data: hrData },
+        { data: kpiData, error: kpiError },
+        { data: geoData, error: geoError },
+        { data: hrData, error: hrError },
       ] = await Promise.all([
         supabase.rpc('get_analytics_kpis'),
         supabase.rpc('get_geographic_distribution', { p_min_threshold: 5 }),
         supabase.rpc('get_peak_hours_distribution'),
       ]);
 
+      const firstError = kpiError || geoError || hrError;
+      if (firstError) {
+        setErrorMessage('تعذر تحميل التقارير. تحقق من دور الحساب وتطبيق ترحيلات قاعدة البيانات.');
+        setKpis(null);
+        setGeoStats([]);
+        setPeakHours([]);
+        return;
+      }
       if (kpiData && kpiData.length > 0) setKpis(kpiData[0]);
-      if (geoData) setGeoStats(geoData);
+      if (geoData) setGeoStats(geoData.map((area: any) => ({ ...area, area_label: area.origin_area_label })));
       if (hrData) setPeakHours(hrData);
     } catch (e) {
       console.error(e);
+      setErrorMessage('حدث خطأ أثناء تحميل التقارير. حاول تحديث الصفحة.');
     } finally {
       setLoading(false);
     }
@@ -72,7 +83,7 @@ export const AnalyticsDashboard: React.FC = () => {
             <h1 className="text-2xl font-bold text-[#1F2430]">مؤشرات الأثر والتكافل المجتمعي</h1>
           </div>
           <p className="text-xs text-[#6B7280] mt-1">
-            إحصاءات مجمعة ومشفرة تحمي خصوصية المستفيدين والمتطوعين (k-Anonymity ≥ 5)
+            إحصاءات مجمعة؛ لا يظهر التوزيع الجغرافي إلا للمناطق التي تضم 5 طلبات فأكثر.
           </p>
         </div>
         <button
@@ -123,6 +134,8 @@ export const AnalyticsDashboard: React.FC = () => {
           <div className="text-[11px] text-[#6B7280]">{kpis?.cancelled_trips || 0} ملغي قبل القبول</div>
         </div>
       </div>
+
+      {errorMessage && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{errorMessage}</div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-[#8A949E]/20 shadow-sm space-y-3">

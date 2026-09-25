@@ -96,7 +96,6 @@ input::placeholder { color: #78847b; }
 }
 .welcome-kicker { margin-top:20px; padding:7px 16px; background:#d5f8e2; color:var(--shahm-green); border-radius:999px; font-size:13px; font-weight:600; }
 .welcome-hero h1 { margin:15px 0 0; font-size:20px; line-height:1.5; font-weight:700; color:var(--shahm-ink); }
-.welcome-lead { margin:2px 0 0; color:var(--shahm-green); font-size:34px; line-height:1.35; font-weight:800; }
 .welcome-description { margin:13px 0 0; max-width:480px; color:var(--shahm-muted); font-size:16px; line-height:1.9; }
 .welcome-actions { width:min(100%, 480px); display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:24px; }
 .welcome-role-card { min-height:76px; display:flex; align-items:center; gap:10px; text-align:right; padding:12px; border:1px solid rgba(0,81,49,.1); border-radius:20px; background:#fff; color:var(--shahm-green); box-shadow:var(--shahm-shadow); }
@@ -130,14 +129,49 @@ input::placeholder { color: #78847b; }
   border-color:var(--shahm-jade) !important; box-shadow:0 0 0 3px rgba(30,142,90,.12);
 }
 
-/* Logged-in app frame */
-.shahm-app-shell { background:var(--shahm-canvas) !important; }
-.shahm-app-header { background:rgba(255,255,255,.94) !important; border-color:rgba(0,81,49,.09) !important; backdrop-filter:blur(14px); padding-top:8px !important; padding-bottom:8px !important; }
-.shahm-app-header > div { min-height:0 !important; }
-.shahm-app-main { box-sizing:border-box; background:transparent !important; width:min(100%, 760px) !important; max-width:760px !important; padding-top:0 !important; }
-.shahm-app-main > section:first-child:not(:has(nav)) { box-sizing:border-box; border-color:rgba(0,81,49,.08) !important; background:linear-gradient(180deg,#e9fff0 0%,#e3f8e9 100%) !important; border-radius:0 0 26px 26px; padding-top:14px !important; padding-bottom:18px !important; }
-.shahm-app-main > section:first-child:not(:has(nav)) .shahm-hero-logo { width:76px; height:76px; margin-bottom:10px; border-width:6px; }
+/* Logged-in app frame: one responsive grid shared by header, content and navigation. */
+.shahm-app-shell {
+  --shahm-content-width:760px;
+  --shahm-content-gutter:24px;
+  --shahm-nav-height:72px;
+  width:100%; min-height:100dvh; direction:rtl;
+  background:var(--shahm-canvas) !important;
+}
+.shahm-app-header {
+  flex:none; background:rgba(255,255,255,.94) !important;
+  border-color:rgba(0,81,49,.09) !important; backdrop-filter:blur(14px);
+  padding:8px 0 !important;
+}
+.shahm-app-header > .shahm-header-content {
+  box-sizing:border-box; width:min(100%,var(--shahm-content-width)); max-width:none;
+  min-height:0 !important; margin-inline:auto; padding-inline:var(--shahm-content-gutter);
+}
+.shahm-app-main {
+  box-sizing:border-box; background:transparent !important;
+  width:min(100%,var(--shahm-content-width)) !important; max-width:var(--shahm-content-width) !important;
+  padding:0 var(--shahm-content-gutter) calc(var(--shahm-nav-height) + env(safe-area-inset-bottom) + 20px) !important;
+  direction:rtl; align-self:center;
+}
+.shahm-app-main > * { min-width:0; }
+.shahm-app-main > section:first-child:not(:has(nav)) {
+  box-sizing:border-box; width:100%; margin-inline:0 !important;
+  border:1px solid rgba(0,81,49,.08) !important;
+  background:linear-gradient(180deg,#e9fff0 0%,#e3f8e9 100%) !important;
+  border-radius:24px; padding:20px 20px 18px !important;
+}
+.shahm-app-main > section:first-child:not(:has(nav)) .shahm-hero-logo { width:76px; height:76px; margin:0 auto 10px; border-width:6px; }
 .shahm-app-main > section:first-child:not(:has(nav)) .shahm-hero-logo img { width:44px; height:44px; }
+.shahm-presence-grid { max-width:400px; }
+.shahm-presence-card {
+  box-sizing:border-box; min-width:0; min-height:82px; padding:10px 12px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  border:1px solid rgba(0,81,49,.09); border-radius:16px; background:rgba(255,255,255,.78);
+  text-align:center;
+}
+.shahm-presence-card strong { line-height:1.15; }
+.shahm-home-quote { box-sizing:border-box; width:100%; max-width:100%; margin-inline:auto; text-align:center; }
+.shahm-action-grid { align-items:stretch; }
+.shahm-action-grid > button { width:100%; min-width:0; }
 .shahm-app-main.is-account-page > :not(.account-page-content), .shahm-app-main.is-guidance-page > :not(.guidance-page-content) { display:none !important; }
 .shahm-app-main.is-account-page > .account-page-content, .shahm-app-main.is-guidance-page > .guidance-page-content { display:block; margin-top:0 !important; }
 .account-page-content, .guidance-page-content { box-sizing:border-box; min-height:calc(100dvh - 250px - env(safe-area-inset-bottom)); }
@@ -154,7 +188,10 @@ input::placeholder { color: #78847b; }
 .shahm-app-main nav[aria-label="التنقل الرئيسي"] { background:#fff !important; border-color:rgba(0,81,49,.12) !important; box-shadow:0 -8px 28px rgba(0,81,49,.07) !important; }
 .shahm-app-main nav[aria-label="التنقل الرئيسي"] + * { margin-bottom:0; }
 .shahm-app-shell > nav[aria-label="التنقل الرئيسي"] { background:#fff !important; border-color:rgba(0,81,49,.12) !important; box-shadow:0 -8px 28px rgba(0,81,49,.07) !important; }
-.shahm-app-shell > nav[aria-label="التنقل الرئيسي"] > div { max-width:760px; }
+.shahm-app-shell > nav[aria-label="التنقل الرئيسي"] > .shahm-bottom-nav-content {
+  box-sizing:border-box; width:min(100%,var(--shahm-content-width)); max-width:none;
+  margin-inline:auto; padding-inline:var(--shahm-content-gutter);
+}
 .shahm-app-shell > nav[aria-label="التنقل الرئيسي"] button { min-height:72px; }
 .shahm-app-shell > nav[aria-label="التنقل الرئيسي"] button:hover { background:#f1fbf4; }
 .shahm-request-card { transition:transform .16s ease, box-shadow .16s ease; }
@@ -170,8 +207,11 @@ input::placeholder { color: #78847b; }
   .welcome-mark { width:112px; height:112px; }
   .welcome-logo-spin { width:48px; height:48px; }
   .welcome-community { padding:26px 40px; }
-  .shahm-app-main { padding-left:24px !important; padding-right:24px !important; }
   .account-page-content, .guidance-page-content { min-height:calc(100vh - 240px); padding:28px !important; }
+}
+@media (max-width:767px) {
+  .shahm-app-shell { --shahm-content-gutter:16px; --shahm-nav-height:68px; }
+  .shahm-app-header { padding-block:8px !important; }
 }
 @media (max-width:420px) {
   .shahm-auth-page { padding-left:16px; padding-right:16px; }
@@ -181,7 +221,6 @@ input::placeholder { color: #78847b; }
   .welcome-mark { width:84px; height:84px; border-width:6px; }
   .welcome-logo-spin { width:36px; height:36px; }
   .welcome-kicker { margin-top:15px; font-size:12px; }
-  .welcome-lead { font-size:30px; }
   .welcome-description { font-size:14px; line-height:1.8; }
   .welcome-actions { grid-template-columns:1fr; gap:9px; margin-top:18px; }
   .welcome-role-card { min-height:68px; }
@@ -189,10 +228,10 @@ input::placeholder { color: #78847b; }
   .welcome-community p { font-size:16px; line-height:1.8; }
   .community-ornament { width:34px; height:34px; }
   .shahm-auth-card { padding:22px !important; }
-  .shahm-app-header { padding-left:12px !important; padding-right:12px !important; }
-  .shahm-app-main { padding-left:12px !important; padding-right:12px !important; }
-  .shahm-app-main > section:first-child:not(:has(nav)) { margin-left:-12px; margin-right:-12px; }
+  .shahm-app-shell { --shahm-content-gutter:14px; }
+  .shahm-app-main > section:first-child:not(:has(nav)) { padding-inline:16px !important; }
   .shahm-app-main .shahm-form-card, .shahm-app-main .shahm-trip-card, .shahm-app-main .shahm-request-card { padding:15px !important; }
+  .shahm-app-shell { --shahm-nav-height:64px; }
   .shahm-app-shell > nav[aria-label="التنقل الرئيسي"] button { min-height:64px; }
   .account-page-content, .guidance-page-content { min-height:calc(100dvh - 250px - env(safe-area-inset-bottom)); border-radius:22px !important; }
 }
@@ -207,3 +246,49 @@ input::placeholder { color: #78847b; }
 .patient-registration-fields { display:grid; gap:12px; border:1px solid rgba(0,81,49,.12); border-radius:18px; background:#f1fbf4; padding:16px; }
 .patient-registration-fields textarea { min-height:92px; line-height:1.8; }
 .patient-registration-fields input[type=number] { text-align:right; }
+
+/* Shared responsive rhythm across welcome, onboarding, app roles, admin and overlays. */
+html, body, #root { width:100%; min-width:0; }
+body { overflow-x:clip; }
+.shahm-auth-page, .shahm-state-screen {
+  box-sizing:border-box; width:100%; min-height:100dvh; direction:rtl;
+}
+.shahm-auth-page { padding-inline:clamp(16px,3vw,24px); }
+.shahm-public-header, .shahm-welcome { box-sizing:border-box; width:min(100%,1120px); }
+.shahm-public-header { min-width:0; gap:12px; }
+.shahm-brand-lockup, .shahm-public-badge { min-width:0; }
+.shahm-welcome { justify-items:center; align-content:center; gap:clamp(24px,4vw,42px); }
+.welcome-hero { width:min(100%,600px); min-width:0; }
+.welcome-actions { width:min(100%,520px); grid-template-columns:repeat(2,minmax(0,1fr)); align-items:stretch; gap:12px; }
+.welcome-role-card { box-sizing:border-box; width:100%; min-width:0; min-height:84px; }
+.welcome-role-copy { min-width:0; }
+.welcome-role-copy small { white-space:normal; line-height:1.5; }
+.welcome-community { box-sizing:border-box; width:min(100%,760px); }
+.welcome-community p { min-width:0; }
+.shahm-auth-card { box-sizing:border-box; width:min(100%,500px) !important; max-width:500px !important; }
+.shahm-auth-card form, .shahm-vehicle-setup-card { min-width:0; }
+.shahm-vehicle-setup-card { box-sizing:border-box; width:min(100%,520px); max-width:520px; margin-inline:auto; }
+.shahm-state-screen { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px max(16px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left)); }
+.shahm-state-screen > * { min-width:0; max-width:100%; }
+.shahm-app-shell.shahm-admin-shell { --shahm-content-width:1024px; }
+.shahm-admin-shell .shahm-home-hero, .shahm-admin-shell .shahm-home-quote { max-width:760px; margin-inline:auto; }
+.shahm-app-main > :where(section,blockquote,article,form,[role="status"],[role="alert"]) { box-sizing:border-box; width:100%; max-width:100%; }
+.shahm-app-main :where(.flex > *, .grid > *) { min-width:0; }
+.shahm-app-main :where(p,h1,h2,h3,h4,strong,span) { overflow-wrap:break-word; }
+.shahm-app-main input:not([type=checkbox]), .shahm-app-main select, .shahm-app-main textarea { box-sizing:border-box; max-width:100%; }
+.shahm-app-main .shahm-form-card, .shahm-app-main .shahm-trip-card, .shahm-app-main .shahm-request-card,
+.account-page-content, .guidance-page-content { box-sizing:border-box; padding:20px !important; }
+.account-page-content, .guidance-page-content { width:100%; max-width:none !important; margin-inline:0 !important; }
+.shahm-app-shell > nav[aria-label="التنقل الرئيسي"] > .shahm-bottom-nav-content { grid-template-columns:repeat(3,minmax(0,1fr)); }
+[role="dialog"] > section, [role="dialog"] > div {
+  box-sizing:border-box; max-width:min(100%,560px); max-height:calc(100dvh - 2rem);
+  overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain;
+}
+@media (max-width:560px) {
+  .shahm-public-header { min-height:62px; }
+  .shahm-public-badge { padding:7px 9px; font-size:11px; }
+  .welcome-actions { grid-template-columns:minmax(0,1fr); gap:10px; }
+  .welcome-role-card { min-height:72px; }
+  .shahm-app-main .shahm-form-card, .shahm-app-main .shahm-trip-card, .shahm-app-main .shahm-request-card,
+  .account-page-content, .guidance-page-content { padding:16px !important; }
+}

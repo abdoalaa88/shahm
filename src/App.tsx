@@ -20,9 +20,7 @@ import { LocationPicker } from './components/common/LocationPicker';
 import { ReportModal } from './components/common/ReportModal';
 import { RatingStars } from './components/common/RatingStars';
 import { RaceConditionToast } from './components/common/StateViews';
-const SafetyPanel = lazy(() => import('./components/admin/SafetyPanel').then((module) => ({ default: module.SafetyPanel })));
-const AnalyticsDashboard = lazy(() => import('./components/admin/AnalyticsDashboard').then((module) => ({ default: module.AnalyticsDashboard })));
-const UsageMonitor = lazy(() => import('./components/admin/UsageMonitor').then((module) => ({ default: module.UsageMonitor })));
+const AdminConsole = lazy(() => import('./components/admin/AdminConsole').then((module) => ({ default: module.AdminConsole })));
 import { toWhatsAppNumber } from './lib/phone';
 import { useInstallPrompt } from './lib/useInstallPrompt';
 import { registerPushNotifications } from './lib/push';
@@ -49,9 +47,6 @@ import {
   ShieldCheck,
   Ban,
   AlertTriangle,
-  LayoutDashboard,
-  ShieldAlert,
-  Server,
   Download,
   LocateFixed,
   ArrowRight,
@@ -211,6 +206,7 @@ const hasMeaningfulLetters = (value: string, minimum = 2) => {
 export const App: React.FC = () => {
   const [sessionUser, setSessionUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
+  const [availableProfiles, setAvailableProfiles] = useState<any[]>([]);
   const [isOnline, setIsOnline] = useState(true);
   const isOnlineRef = useRef(true);
   const [presenceCounts, setPresenceCounts] = useState<{ shahm: number | null; patient: number | null }>({ shahm: null, patient: null });
@@ -218,9 +214,6 @@ export const App: React.FC = () => {
   const [addingRequesterProfile, setAddingRequesterProfile] = useState(false);
   const [canReturnToVolunteer, setCanReturnToVolunteer] = useState(false);
 
-  const [adminTab, setAdminTab] = useState<
-    'trips' | 'safety' | 'analytics' | 'usage'
-  >('trips');
 
   const [firstName, setFirstName] = useState('');
   const [phone, setPhone] = useState('');
@@ -451,7 +444,6 @@ export const App: React.FC = () => {
 
       setReportModalOpen(false);
       setReportSuccess(false);
-      setAdminTab('trips');
 
       setVolunteerContactData(null);
       setShowSettings(false);
@@ -476,6 +468,7 @@ export const App: React.FC = () => {
 
       if (error) throw error;
       if (activeUserId.current !== uid) return;
+      setAvailableProfiles(profileRows ?? []);
 
       const preferredRole =
         localStorage.getItem('shahm.pendingRole') ||
@@ -1722,7 +1715,7 @@ export const App: React.FC = () => {
 
   if (sessionLoading || (sessionUser && profileLoading)) {
     return (
-      <div className="min-h-screen bg-[#F7F8F9] flex items-center justify-center p-4 text-[#6B7280]">
+      <div dir="rtl" className="shahm-state-screen min-h-screen bg-[#F7F8F9] flex items-center justify-center p-4 text-[#6B7280]">
         <div className="flex items-center gap-2 text-sm" role="status">
           <Loader2 className="w-5 h-5 animate-spin text-[#146B44]" />
           جاري تحميل الحساب...
@@ -1733,7 +1726,7 @@ export const App: React.FC = () => {
 
   if (sessionUser && profileError) {
     return (
-      <div className="min-h-screen bg-[#F7F8F9] flex items-center justify-center p-4 text-center">
+      <div dir="rtl" className="shahm-state-screen min-h-screen bg-[#F7F8F9] flex items-center justify-center p-4 text-center">
         <div className="w-full max-w-sm bg-white p-6 rounded-2xl border border-[#FCEAEA] space-y-3">
           <AlertCircle className="w-8 h-8 mx-auto text-[#B53A3A]" />
           <h2 className="font-bold text-[#1F2430]">تعذر تحميل دور الحساب</h2>
@@ -1757,7 +1750,7 @@ export const App: React.FC = () => {
 
   if (profile && !profile.is_active) {
     return (
-      <div className="min-h-screen bg-[#F7F8F9] flex flex-col justify-center items-center p-4 text-center">
+      <div dir="rtl" className="shahm-state-screen min-h-screen bg-[#F7F8F9] flex flex-col justify-center items-center p-4 text-center">
         <div className="w-16 h-16 bg-[#FCEAEA] text-[#B53A3A] rounded-full flex items-center justify-center mx-auto mb-4">
           <Ban className="w-8 h-8" />
         </div>
@@ -1782,7 +1775,7 @@ export const App: React.FC = () => {
       (sessionUser && !profile && !profileError && !roleSelection))
   ) {
     return (
-      <div className="shahm-auth-page">
+      <div dir="rtl" className="shahm-auth-page">
         <header className="shahm-public-header" aria-label="شَهْم">
           <div className="shahm-brand-lockup">
             <img aria-hidden="true" alt="" src="/shahm-logo-mark-20260924.png" />
@@ -1800,8 +1793,7 @@ export const App: React.FC = () => {
             </div>
             <span className="welcome-kicker">خير الناس أنفعهم للناس</span>
             <h1>أهلاً بك في شَهْم</h1>
-            <p className="welcome-lead">الناس للناس</p>
-            <p className="welcome-description">منصة مجتمعية لمساعدة المصابين بأمراض مزمنة والأكثر احتياجاً</p>
+            <p className="welcome-description">توصيلة في طريقك .. تخفف رحلة علاج عن غيرك.</p>
 
             <div className="welcome-actions" aria-label="اختر طريقة استخدام شَهْم">
               <button
@@ -1815,7 +1807,7 @@ export const App: React.FC = () => {
                 className="welcome-role-card"
               >
                 <span className="welcome-role-icon"><LocateFixed aria-hidden="true" /></span>
-                <span className="welcome-role-copy"><strong>احتاج مساعدة</strong><small>اطلب مساندة من شهم قريب</small></span>
+                <span className="welcome-role-copy"><strong>احتاج توصيله</strong><small>اطلب مساندة من شهم قريب</small></span>
                 <span className="welcome-role-arrow" aria-hidden="true">←</span>
               </button>
               <button
@@ -1838,7 +1830,7 @@ export const App: React.FC = () => {
 
           <blockquote className="welcome-community">
             <span className="community-ornament" aria-hidden="true"><HeartHandshake /></span>
-            <p>«من سار بين الناس جابراً للخواطر أدركه الله في جوف المخاطر.»</p>
+            <p>﴿وَمَنْ أَحْيَاهَا فَكَأَنَّمَا أَحْيَا النَّاسَ جَمِيعًا﴾</p>
           </blockquote>
         </main>
 
@@ -1849,9 +1841,9 @@ export const App: React.FC = () => {
   }
 
   if (!sessionUser && roleSelection) {
-    const selectedRoleLabel = roleSelection === 'requester' ? 'احتاج مساعدة' : 'أرغب بالمساعدة';
+    const selectedRoleLabel = roleSelection === 'requester' ? 'احتاج توصيله' : 'أرغب بالمساعدة';
     return (
-      <div className="shahm-auth-page min-h-screen bg-[#F7F8F9] flex flex-col justify-center items-center p-4">
+      <div dir="rtl" className="shahm-auth-page min-h-screen bg-[#F7F8F9] flex flex-col justify-center items-center p-4">
         <div className="shahm-auth-card w-full max-w-sm bg-white p-6 rounded-2xl shadow-sm border border-[#8A949E]/20 text-center">
           <div className="signup-brand-lockup">
             <img aria-hidden="true" alt="" src="/shahm-logo-mark-20260924.png" />
@@ -1897,7 +1889,7 @@ export const App: React.FC = () => {
   if (sessionUser && roleSelection && (!profile || addingRequesterProfile)) {
     const selectedRoleLabel = roleSelection === 'requester' ? 'طالب المساعدة' : 'الشهم المتطوع';
     return (
-      <div className="shahm-auth-page shahm-signup-page min-h-screen bg-[#F7F8F9] flex flex-col justify-center items-center p-4">
+      <div dir="rtl" className="shahm-auth-page shahm-signup-page min-h-screen bg-[#F7F8F9] flex flex-col justify-center items-center p-4">
         <div className="shahm-auth-card shahm-form-card w-full max-w-sm bg-white p-6 rounded-2xl shadow-sm border border-[#8A949E]/20">
           <div className="signup-brand-lockup">
             <img aria-hidden="true" alt="" src="/shahm-logo-mark-20260924.png" />
@@ -1966,8 +1958,8 @@ export const App: React.FC = () => {
 
   if (profile?.role === 'volunteer' && !hasCompleteVolunteerVehicleDetails(profile)) {
     return (
-      <div className="min-h-screen bg-[#F7F8F9] px-4 py-8">
-        <form onSubmit={(event) => void handleSaveVolunteerVehicleDetails(event)} className="mx-auto w-full max-w-md space-y-4 rounded-2xl border border-[#8A949E]/20 bg-white p-5 text-right shadow-sm">
+      <div dir="rtl" className="shahm-state-screen shahm-vehicle-setup-page min-h-screen bg-[#F7F8F9] px-4 py-8">
+        <form onSubmit={(event) => void handleSaveVolunteerVehicleDetails(event)} className="shahm-vehicle-setup-card mx-auto w-full max-w-md space-y-4 rounded-2xl border border-[#8A949E]/20 bg-white p-5 text-right shadow-sm">
           <div className="text-center">
             <h1 className="text-xl font-bold text-[#005131]">استكمال بيانات السيارة</h1>
             <p className="mt-2 text-sm leading-6 text-[#53645a]">أدخل بيانات السيارة مرة واحدة للمتابعة واستخدام التطبيق كشهم.</p>
@@ -2001,7 +1993,7 @@ export const App: React.FC = () => {
 
   const showRequesterView = profile?.role === 'requester';
   const showVolunteerView =
-    profile?.role === 'volunteer' || (isAdmin && adminTab === 'trips');
+    profile?.role === 'volunteer';
   const isProfilePage = activeBottomTab === 'account' && showSettings;
   const isGuidancePage = activeBottomTab === 'guidance' && showGuidance;
   const guidanceContent = profile?.role === 'requester'
@@ -2054,7 +2046,7 @@ export const App: React.FC = () => {
     ].includes(profile?.role)
   ) {
     return (
-      <div className="min-h-screen bg-[#F7F8F9] flex items-center justify-center p-4 text-center">
+      <div dir="rtl" className="shahm-state-screen min-h-screen bg-[#F7F8F9] flex items-center justify-center p-4 text-center">
         <div className="w-full max-w-sm bg-white p-6 rounded-2xl border border-[#8A949E]/20 space-y-3">
           <AlertCircle className="w-8 h-8 mx-auto text-[#B53A3A]" />
           <h2 className="font-bold text-[#1F2430]">الدور غير مكتمل</h2>
@@ -2073,22 +2065,26 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="shahm-app-shell min-h-screen bg-[#F7F8F9] flex flex-col text-right">
+      <div dir="rtl" className={'shahm-app-shell min-h-screen bg-[#F7F8F9] flex flex-col text-right' + (isAdmin ? ' shahm-admin-shell' : '')}>
       {configurationNotice}
       {installNotice}
 
       <header className="shahm-app-header sticky top-0 z-40 border-b border-[#8A949E]/20 bg-white px-4 py-2">
-        <div className="mx-auto max-w-2xl space-y-2">
+        <div className="shahm-header-content mx-auto max-w-2xl space-y-2">
           <div dir="rtl" className="flex min-h-9 items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2 rounded-full bg-[#F3F7F4] px-3 py-1.5 text-xs text-[#53645a]">
               <UserRound className="h-4 w-4 shrink-0 text-[#146B44]" aria-hidden="true" />
               <span>أهلاً {profile?.first_name || ''}</span>
               <strong className="text-[#005131]">“{profile?.role === 'volunteer' ? 'Shahm' : profile?.role === 'requester' ? 'Patient' : 'Admin'}”</strong>
             </div>
-            <button type="button" onClick={() => void handleAvailabilityToggle()} aria-pressed={isOnline} className={'flex min-h-9 shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold transition-colors ' + (isOnline ? 'bg-[#E6F4ED] text-[#08784B]' : 'bg-[#F1F2F3] text-[#65736A]')}>
-              <span className={'h-2.5 w-2.5 rounded-full ' + (isOnline ? 'bg-[#1EAA67]' : 'bg-[#98A19B]')} aria-hidden="true" />
-              {isOnline ? 'متصل' : 'غير متصل'}
-            </button>
+            {isAdmin ? (
+              <span className="flex min-h-9 shrink-0 items-center gap-2 rounded-full bg-[#E6F4ED] px-3 py-1.5 text-xs font-bold text-[#08784B]"><ShieldCheck className="h-4 w-4" />إدارة</span>
+            ) : (
+              <button type="button" onClick={() => void handleAvailabilityToggle()} aria-pressed={isOnline} className={'flex min-h-9 shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold transition-colors ' + (isOnline ? 'bg-[#E6F4ED] text-[#08784B]' : 'bg-[#F1F2F3] text-[#65736A]')}>
+                <span className={'h-2.5 w-2.5 rounded-full ' + (isOnline ? 'bg-[#1EAA67]' : 'bg-[#98A19B]')} aria-hidden="true" />
+                {isOnline ? 'متصل' : 'غير متصل'}
+              </button>
+            )}
           </div>
           {profileRating && profile && ['requester', 'volunteer'].includes(profile.role) && (
             <div dir="rtl" className="flex justify-start px-3">
@@ -2098,47 +2094,28 @@ export const App: React.FC = () => {
         </div>
       </header>
 
-      <main id="main-content" data-page={isProfilePage ? 'account' : isGuidancePage ? 'guidance' : 'trips'} className={'shahm-app-main flex-1 max-w-2xl w-full mx-auto bg-[#F7F8F9] px-4 pt-0 pb-[calc(7rem+env(safe-area-inset-bottom))] space-y-4' + (isProfilePage ? ' is-account-page' : isGuidancePage ? ' is-guidance-page' : '')}>
-        <section className="-mx-4 border-b border-[#D8EEE1] bg-[#F0FBF4] px-5 pb-7 pt-6 text-center">
+      <main dir="rtl" id="main-content" data-page={isProfilePage ? 'account' : isGuidancePage ? 'guidance' : 'trips'} className={'shahm-app-main flex-1 max-w-2xl w-full mx-auto bg-[#F7F8F9] px-4 pt-0 pb-[calc(7rem+env(safe-area-inset-bottom))] space-y-4' + (isProfilePage ? ' is-account-page' : isGuidancePage ? ' is-guidance-page' : '')}>
+        <section className="shahm-home-hero border border-[#D8EEE1] bg-[#F0FBF4] px-5 pb-6 pt-5 text-center">
           <div className="shahm-hero-logo mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full border-[7px] border-[#DDEFE5] bg-white shadow-sm">
             <img aria-hidden="true" alt="" src="/shahm-logo-mark-20260924.png" className="h-14 w-14 object-contain" />
           </div>
           <p className="text-base font-medium text-[#53645a]">في شهم</p>
-          <h1 className="mt-2 text-2xl font-extrabold tracking-wide text-[#005131]">الناس للناس</h1>
-          <div className="mx-auto mt-4 grid max-w-xs grid-cols-2 gap-8" aria-label="أعداد Shahm وPatient">
-            <div>
+          <div className="shahm-presence-grid mx-auto mt-4 grid w-full max-w-sm grid-cols-2 gap-3" aria-label="أعداد Shahm وPatient">
+            <div className="shahm-presence-card">
               <span className="block text-xs font-semibold tracking-wide text-[#65736A]">Shahm</span>
               <strong className="mt-1 block text-2xl font-extrabold tabular-nums text-[#08784B]">{presenceCounts.shahm ?? '—'}</strong>
             </div>
-            <div>
+            <div className="shahm-presence-card">
               <span className="block text-xs font-semibold tracking-wide text-[#65736A]">Patient</span>
               <strong className="mt-1 block text-2xl font-extrabold tabular-nums text-[#08784B]">{presenceCounts.patient ?? '—'}</strong>
             </div>
           </div>
         </section>
 
-        <blockquote className="rounded-3xl border border-[#D8EEE1] bg-[#E8F7EE] px-5 py-6 text-center text-base font-semibold leading-8 text-[#005131] shadow-sm">
-          «من سار بين الناس جابراً للخواطر أدركه الله في جوف المخاطر.»
+        <blockquote className="shahm-home-quote rounded-3xl border border-[#D8EEE1] bg-[#E8F7EE] px-5 py-6 text-center text-base font-semibold leading-8 text-[#005131] shadow-sm">
+          ﴿وَمَنْ أَحْيَاهَا فَكَأَنَّمَا أَحْيَا النَّاسَ جَمِيعًا﴾
         </blockquote>
-        {isAdmin && (
-          <nav aria-label="أقسام الإدارة" className="flex gap-2 overflow-x-auto rounded-2xl border border-[#8A949E]/20 bg-white p-2">
-            <button type="button" onClick={() => setAdminTab('trips')} className={`min-h-11 shrink-0 rounded-xl px-3 text-xs font-semibold ${adminTab === 'trips' ? 'bg-[#146B44] text-white' : 'bg-[#F7F8F9] text-[#6B7280]'}`}>
-              المشاوير الميدانية
-            </button>
-            <button type="button" onClick={() => setAdminTab('safety')} className={`flex min-h-11 shrink-0 items-center gap-1 rounded-xl px-3 text-xs font-semibold ${adminTab === 'safety' ? 'bg-[#146B44] text-white' : 'bg-[#F7F8F9] text-[#6B7280]'}`}>
-              <ShieldAlert className="h-3.5 w-3.5" /> البلاغات والسلامة
-            </button>
-            <button type="button" onClick={() => setAdminTab('analytics')} className={`flex min-h-11 shrink-0 items-center gap-1 rounded-xl px-3 text-xs font-semibold ${adminTab === 'analytics' ? 'bg-[#146B44] text-white' : 'bg-[#F7F8F9] text-[#6B7280]'}`}>
-              <LayoutDashboard className="h-3.5 w-3.5" /> المؤشرات والتحليلات
-            </button>
-            <button type="button" onClick={() => setAdminTab('usage')} className={`flex min-h-11 shrink-0 items-center gap-1 rounded-xl px-3 text-xs font-semibold ${adminTab === 'usage' ? 'bg-[#146B44] text-white' : 'bg-[#F7F8F9] text-[#6B7280]'}`}>
-              <Server className="h-3.5 w-3.5" /> استهلاك الخطة المجانية
-            </button>
-          </nav>
-        )}
-        {isAdmin && adminTab === 'safety' && <Suspense fallback={<div className="p-4 text-center text-sm">جارٍ التحميل…</div>}><SafetyPanel /></Suspense>}
-        {isAdmin && adminTab === 'analytics' && <Suspense fallback={<div className="p-4 text-center text-sm">جارٍ التحميل…</div>}><AnalyticsDashboard /></Suspense>}
-        {isAdmin && adminTab === 'usage' && <Suspense fallback={<div className="p-4 text-center text-sm">جارٍ التحميل…</div>}><UsageMonitor /></Suspense>}
+        {isAdmin && <Suspense fallback={<div className="rounded-2xl bg-white p-6 text-center text-sm text-[#65736A]">جارٍ تحميل مركز الإدارة…</div>}><AdminConsole role={profile.role} /></Suspense>}
 
         {showRequesterView && (
           <>
@@ -2597,7 +2574,7 @@ export const App: React.FC = () => {
                 )}
 
                 {!activeAssistanceRequest && !showAssistanceForm && (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="shahm-action-grid grid w-full grid-cols-2 gap-3">
                     <button type="button" onClick={() => void handleOpenHelpRequest()} className="flex h-16 min-w-0 items-center justify-center gap-2 rounded-2xl border border-[#D8EEE1] bg-[#E8F7EE] px-2 text-center text-sm font-extrabold text-[#005131] shadow-sm transition-colors hover:bg-[#E0F4E8]">
                       <HeartHandshake className="h-5 w-5 shrink-0" aria-hidden="true" /><span>طلب مساعدة</span>
                     </button>
@@ -2798,7 +2775,7 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {showSettings && (
+      {showSettings && (
           <section className="account-page-content mx-auto w-full max-w-2xl space-y-5 rounded-3xl border border-[#146B44]/10 bg-white p-4 text-right shadow-sm sm:p-6">
               <div className="flex items-center justify-between gap-3 border-b border-[#8A949E]/15 pb-4">
                 <div><h2 className="text-xl font-extrabold text-[#005131]">حسابي</h2><p className="mt-1 text-sm text-[#6B7280]">بياناتك وتفضيلاتك في مكان واحد.</p></div>
@@ -2821,6 +2798,23 @@ export const App: React.FC = () => {
                 <div className="p-3 bg-[#E6F4ED] text-[#146B44] text-xs rounded-xl flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 shrink-0" />
                   <span>تم حفظ البيانات بنجاح.</span>
+                </div>
+              )}
+
+              {availableProfiles.filter((item) => item.role !== profile?.role).length > 0 && (
+                <div className="rounded-2xl border border-[#DCE8E0] bg-[#F8FBF9] p-4">
+                  <h3 className="text-sm font-bold text-[#173628]">التبديل بين أدوارك</h3>
+                  <p className="mt-1 text-xs leading-5 text-[#748078]">اختر الملف الذي تريد استخدامه بهذا الحساب.</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {availableProfiles.filter((item) => item.role !== profile?.role).map((item) => {
+                      const label = item.role === 'requester' ? 'طالب المساعدة' : item.role === 'volunteer' ? 'شهم' : 'إدارة';
+                      return <button key={item.id} type="button" onClick={() => {
+                        setProfile(item);
+                        setShowSettings(false);
+                        try { localStorage.setItem('shahm.activeProfileRole', item.role); } catch { /* optional preference */ }
+                      }} className="min-h-10 rounded-xl border border-[#BFD9C9] bg-white px-4 text-xs font-bold text-[#0B6742]">التحويل إلى {label}</button>;
+                    })}
+                  </div>
                 </div>
               )}
 
@@ -3000,7 +2994,7 @@ export const App: React.FC = () => {
       </main>
 
       <nav aria-label="التنقل الرئيسي" className="fixed inset-x-0 bottom-0 z-40 border-t border-[#146B44]/10 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(16,37,27,0.08)]">
-        <div className="mx-auto grid max-w-2xl grid-cols-3">
+        <div className="shahm-bottom-nav-content mx-auto grid max-w-2xl grid-cols-3">
           <button type="button" onClick={() => { setActiveBottomTab('account'); setShowGuidance(false); handleOpenSettings(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className={'flex min-h-[68px] flex-col items-center justify-center gap-1 border-l border-[#146B44]/10 text-xs ' + (activeBottomTab === 'account' ? 'bg-[#E6F4ED] font-bold text-[#005131]' : 'text-[#53645a]')}>
             <UserRound className="h-5 w-5" aria-hidden="true" />
             <span>حسابي</span>
