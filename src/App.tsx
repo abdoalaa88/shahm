@@ -557,9 +557,15 @@ export const App: React.FC = () => {
         localStorage.getItem('shahm.activeProfileRole');
       const explicitlyRequestedRole =
         localStorage.getItem('shahm.pendingRole') || pendingProfile?.role;
-      const matchingProfile = profileRows?.find(
-        (candidate) => candidate.role === preferredRole,
-      );
+      // Admin entry resolves an existing privileged profile only; it never grants a role.
+      const adminRolePriority: UserRole[] = [
+        'super_admin', 'ops_admin', 'verification_admin', 'analytics_viewer',
+      ];
+      const matchingProfile = explicitlyRequestedRole === 'super_admin'
+        ? adminRolePriority
+            .map((role) => profileRows?.find((candidate) => candidate.role === role))
+            .find(Boolean)
+        : profileRows?.find((candidate) => candidate.role === preferredRole);
       const data =
         matchingProfile ??
         (explicitlyRequestedRole ? null : profileRows?.[0] ?? null);
@@ -1998,6 +2004,22 @@ export const App: React.FC = () => {
                 <span className="welcome-role-copy"><strong>أرغب بالمساعدة</strong><small>كن شهمًا وساعد غيرك</small></span>
                 <span className="welcome-role-arrow" aria-hidden="true">←</span>
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (sessionUser) {
+                    localStorage.setItem('shahm.pendingRole', 'super_admin');
+                    void fetchProfile(sessionUser.id);
+                  } else {
+                    void handleGoogleLogin('super_admin');
+                  }
+                }}
+                className="welcome-role-card welcome-admin-role-card"
+              >
+                <span className="welcome-role-icon"><ShieldCheck aria-hidden="true" /></span>
+                <span className="welcome-role-copy"><strong>دخول الإدارة</strong><small>للحسابات الإدارية المصرّح لها</small></span>
+                <span className="welcome-role-arrow" aria-hidden="true">←</span>
+              </button>
             </div>
             <p className="welcome-privacy"><ShieldCheck aria-hidden="true" /> بياناتك محفوظة وتُشارك عند الحاجة فقط</p>
           </section>
@@ -2015,7 +2037,11 @@ export const App: React.FC = () => {
   }
 
   if (!sessionUser && roleSelection) {
-    const selectedRoleLabel = roleSelection === 'requester' ? 'احتاج توصيله' : 'أرغب بالمساعدة';
+    const selectedRoleLabel = roleSelection === 'requester'
+      ? 'احتاج توصيله'
+      : roleSelection === 'volunteer'
+        ? 'أرغب بالمساعدة'
+        : 'إدارة شهم';
     return (
       <div dir="rtl" className="shahm-auth-page min-h-screen bg-[#F7F8F9] flex flex-col justify-center items-center p-4">
         <div className="shahm-auth-card w-full max-w-sm bg-white p-6 rounded-2xl shadow-sm border border-[#8A949E]/20 text-center">
@@ -2034,7 +2060,9 @@ export const App: React.FC = () => {
           </button>
           <h2 className="text-xl font-bold text-[#1F2430] mb-2">الدخول كـ {selectedRoleLabel}</h2>
           <p className="text-sm leading-6 text-[#6B7280] mb-6">
-            اختر حساب Google. بعد الدخول سنفتح حسابك مباشرة، أو نطلب بيانات هذا الدور إذا كانت أول مرة.
+            {roleSelection === 'super_admin'
+              ? 'سجّل بحساب Google المرتبط بصلاحية إدارية مفعّلة.'
+              : 'اختر حساب Google. بعد الدخول سنفتح حسابك مباشرة، أو نطلب بيانات هذا الدور إذا كانت أول مرة.'}
           </p>
 
           {errorMessage && (
@@ -2060,7 +2088,8 @@ export const App: React.FC = () => {
     );
   }
 
-  if (sessionUser && roleSelection && (!profile || addingRequesterProfile)) {
+  // Admin roles are never self-registered through the public profile form.
+  if (sessionUser && roleSelection && roleSelection !== 'super_admin' && (!profile || addingRequesterProfile)) {
     const selectedRoleLabel = roleSelection === 'requester' ? 'طالب المساعدة' : 'الشهم المتطوع';
     return (
       <div dir="rtl" className="shahm-auth-page shahm-signup-page min-h-screen bg-[#F7F8F9] flex flex-col justify-center items-center p-4">
@@ -2225,7 +2254,9 @@ export const App: React.FC = () => {
           <AlertCircle className="w-8 h-8 mx-auto text-[#B53A3A]" />
           <h2 className="font-bold text-[#1F2430]">الدور غير مكتمل</h2>
           <p className="text-xs text-[#6B7280]">
-            حسابك لا يحتوي على دور صالح في جدول profiles.
+            {localStorage.getItem('shahm.pendingRole') === 'super_admin'
+              ? 'لا توجد صلاحية إدارية مفعّلة لهذا البريد. تواصل مع مالك المشروع.'
+              : 'حسابك لا يحتوي على دور صالح في جدول profiles.'}
           </p>
           <button
             onClick={handleSignOut}
