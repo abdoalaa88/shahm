@@ -82,7 +82,7 @@ input::placeholder { color: #78847b; }
 .shahm-brand-lockup img { width:38px; height:38px; object-fit:contain; }
 .shahm-public-badge { display:flex; align-items:center; gap:7px; padding:8px 13px; border:1px solid rgba(0,81,49,.1); border-radius:999px; background:rgba(255,255,255,.7); color:var(--shahm-muted); font-size:12px; }
 .shahm-public-badge svg { width:16px; height:16px; color:var(--shahm-jade); }
-.shahm-welcome { width:min(100%, 1120px); flex:1; display:grid; align-content:center; justify-items:center; gap:34px; padding:32px 0; }
+.shahm-welcome { width:min(100%, 1120px); flex:1; display:grid; align-content:center; justify-items:center; gap:34px; margin-top:12px; padding:32px 0; }
 .welcome-hero { width:min(100%, 600px); text-align:center; display:flex; flex-direction:column; align-items:center; }
 .welcome-mark { width:98px; height:98px; display:grid; place-items:center; border-radius:50%; background:#fff; border:7px solid #dbece0; box-shadow:var(--shahm-shadow); perspective:1000px; }
 .welcome-logo-spin { position:relative; display:grid; place-items:center; width:42px; height:42px; transform-style:preserve-3d; transform-origin:50% 55%; animation:welcome-logo-sway 3.6s ease-in-out infinite; will-change:transform; }
@@ -109,8 +109,8 @@ input::placeholder { color: #78847b; }
 .welcome-role-arrow { font-size:18px; color:var(--shahm-jade); }
 .welcome-privacy { display:flex; align-items:center; gap:7px; margin:15px 0 0; color:#66736a; font-size:12px; }
 .welcome-privacy svg { width:16px; height:16px; color:var(--shahm-jade); }
-.welcome-community { width:min(100%, 740px); box-sizing:border-box; margin:0; padding:22px 24px; display:flex; align-items:center; justify-content:center; gap:15px; border:1px solid rgba(0,81,49,.09); border-radius:24px; background:#e6f8ec; color:var(--shahm-green); text-align:center; }
-.welcome-community p { margin:0; font-size:20px; line-height:1.8; font-weight:700; }
+.welcome-community { width:min(100%, 740px); box-sizing:border-box; margin:0; padding:22px 24px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:15px; border:1px solid rgba(0,81,49,.09); border-radius:24px; background:#e6f8ec; color:var(--shahm-green); text-align:center; }
+.welcome-community p { margin:0; max-width:100%; white-space:nowrap; font-size:clamp(11px, 3.5vw, 20px); line-height:1.8; font-weight:700; }
 .community-ornament { flex:none; width:42px; height:42px; display:grid; place-items:center; border-radius:50%; background:#d1f7df; }
 .community-ornament svg { width:23px; color:var(--shahm-jade); }
 .welcome-register-prompt { width:min(100%, 480px); min-height:48px; margin:0 auto; border:0; border-radius:999px; background:var(--shahm-primary); color:white; font-weight:700; }
@@ -226,7 +226,7 @@ input::placeholder { color: #78847b; }
   .welcome-actions { grid-template-columns:1fr; gap:9px; margin-top:18px; }
   .welcome-role-card { min-height:68px; }
   .welcome-community { gap:10px; padding:16px; border-radius:20px; }
-  .welcome-community p { font-size:16px; line-height:1.8; }
+  .welcome-community p { font-size:clamp(11px, 3.5vw, 16px); line-height:1.8; white-space:nowrap; }
   .community-ornament { width:34px; height:34px; }
   .shahm-auth-card { padding:22px !important; }
   .shahm-app-shell { --shahm-content-gutter:14px; }
