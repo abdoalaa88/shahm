@@ -2286,7 +2286,7 @@ export const App: React.FC = () => {
                     </h3>
 
                     <p className="text-sm leading-6 text-[#53645a]">
-                      طلبك ظاهر لأكثر من متطوع قريب منك، لحين قبول أحدهم.
+                      طلبك ظاهر للمتطوعين القريبين منك، لحين قبول أحدهم.
                     </p>
 
                     {activeRequesterTrip.last_cancellation_actor_role === 'volunteer' && (
