@@ -1975,7 +1975,7 @@ export const App: React.FC = () => {
             <img aria-hidden="true" alt="" src="/shahm-logo-mark-20260924.png" />
             <span>شَهْم</span>
           </div>
-          <span className="shahm-public-badge"><ShieldCheck aria-hidden="true" /> مجتمع آمن ومساند</span>
+          <span className="shahm-public-badge"><ShieldCheck aria-hidden="true" /> الناس للناس</span>
         </header>
 
         <main className="shahm-welcome">
@@ -1995,7 +1995,7 @@ export const App: React.FC = () => {
             </button>
             <span className="welcome-kicker">خير الناس أنفعهم للناس</span>
             <h1>أهلاً بك في شَهْم</h1>
-            <p className="welcome-description">توصيلة في طريقك .. تخفف رحلة علاج عن غيرك.</p>
+            <p className="welcome-description">توصيلة في طريقك .. تخفف رحلة علاج غيرك.</p>
 
             <div className="welcome-actions" aria-label="اختر طريقة استخدام شَهْم">
               <button
