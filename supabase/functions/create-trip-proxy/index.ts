@@ -24,17 +24,27 @@ const localDevelopmentOrigins = [
   'http://127.0.0.1:4175',
 ];
 
+const productionOrigins = [
+  // The deployed Cloudflare Pages site was returning 403 for its OPTIONS preflight.
+  'https://shahm-eg.pages.dev',
+];
+
 const allowedOrigins = [
   ...(Deno.env.get('ALLOWED_ORIGINS') ?? '')
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean),
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+  ...productionOrigins,
   ...localDevelopmentOrigins,
 ];
 
 const jsonHeaders = (request: Request) => {
   const requestOrigin = request.headers.get('origin') ?? '';
-  const allowOrigin = allowedOrigins.includes('*') ? '*' : requestOrigin;
+  const allowOrigin = allowedOrigins.includes('*')
+    ? '*'
+    : allowedOrigins.includes(requestOrigin)
+    ? requestOrigin
+    : 'null';
 
   return {
     'Access-Control-Allow-Origin': allowOrigin,
@@ -334,3 +344,4 @@ Deno.serve(async (request) => {
     trip_id: tripId,
   });
 });
+
