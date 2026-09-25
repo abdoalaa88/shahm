@@ -99,6 +99,7 @@ input::placeholder { color: #78847b; }
 .welcome-description { margin:13px 0 0; max-width:480px; color:var(--shahm-muted); font-size:16px; line-height:1.9; }
 .welcome-actions { width:min(100%, 480px); display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:24px; }
 .welcome-role-card { min-height:76px; display:flex; align-items:center; gap:10px; text-align:right; padding:12px; border:1px solid rgba(0,81,49,.1); border-radius:20px; background:#fff; color:var(--shahm-green); box-shadow:var(--shahm-shadow); }
+.welcome-admin-role-card { grid-column:1 / -1; min-height:68px; }
 .welcome-role-card:hover { border-color:rgba(20,107,68,.35); box-shadow:0 10px 28px rgba(0,81,49,.12); transform:translateY(-1px); }
 .welcome-role-icon { flex:none; width:42px; height:42px; display:grid; place-items:center; border-radius:50%; background:var(--shahm-soft); color:var(--shahm-primary); }
 .welcome-role-icon svg { width:21px; height:21px; }
