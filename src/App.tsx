@@ -296,6 +296,7 @@ export const App: React.FC = () => {
   const [cancelTripSubmitting, setCancelTripSubmitting] = useState(false);
   const [cancelTripError, setCancelTripError] = useState<string | null>(null);
   const [tripNotice, setTripNotice] = useState<string | null>(null);
+  const [tripNoticeEventId, setTripNoticeEventId] = useState<string | null>(null);
 
   const [selectedTripDetails, setSelectedTripDetails] =
     useState<PublicTrip | null>(null);
@@ -306,6 +307,87 @@ export const App: React.FC = () => {
   const [routePreferenceSaving, setRoutePreferenceSaving] = useState(false);
   const [routePreferenceMessage, setRoutePreferenceMessage] = useState('');
   const routePreferenceReady = useRef(false);
+
+  // Cancellation notices are stored transactionally with the trip change,
+  // then loaded on sign-in and streamed so a disconnected volunteer sees them.
+  useEffect(() => {
+    if (!profile?.id || !['requester', 'volunteer'].includes(profile.role)) {
+      setTripNotice(null);
+      setTripNoticeEventId(null);
+      return;
+    }
+
+    let active = true;
+    const showNotice = (notice: {
+      event_id: string;
+      notification_kind: string;
+      cancellation_reason: string | null;
+    }) => {
+      const reason = notice.cancellation_reason?.trim();
+      const message = notice.notification_kind === 'requester_cancelled'
+        ? `ألغى طالب الرحلة طلب النقل${reason ? ` بسبب: ${reason}` : ''}. أجرك على نيتك محفوظ بإذن الله؛ وعلى نياتكم تُرزقون.`
+        : `اعتذر الشهم عن إكمال الرحلة${reason ? ` بسبب: ${reason}` : ''}. طلبك ما زال قائمًا وسيظهر لمتطوعين آخرين قريبين منك.`;
+      setTripNoticeEventId(notice.event_id);
+      setTripNotice(message);
+    };
+
+    const channel = supabase
+      .channel(`trip-cancellation-notices-${profile.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'trip_in_app_notifications',
+        filter: `recipient_profile_id=eq.${profile.id}`,
+      }, (payload) => {
+        showNotice(payload.new as {
+          event_id: string;
+          notification_kind: string;
+          cancellation_reason: string | null;
+        });
+      })
+      .subscribe((status, error) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.error('Trip cancellation notice subscription failed:', error ?? status);
+        }
+      });
+
+    const loadUnreadNotice = async () => {
+      const { data, error } = await supabase
+        .from('trip_in_app_notifications')
+        .select('event_id,notification_kind,cancellation_reason')
+        .eq('recipient_profile_id', profile.id)
+        .is('read_at', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) {
+        console.error('Loading unread trip cancellation notice failed:', error);
+        return;
+      }
+      if (active && data) showNotice(data);
+    };
+
+    void loadUnreadNotice();
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
+  }, [profile?.id, profile?.role]);
+
+  const dismissTripNotice = async () => {
+    const eventId = tripNoticeEventId;
+    setTripNotice(null);
+    setTripNoticeEventId(null);
+    if (!eventId || !profile?.id) return;
+
+    // The database policy limits this receipt update to its recipient.
+    const { error } = await supabase
+      .from('trip_in_app_notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('event_id', eventId)
+      .eq('recipient_profile_id', profile.id);
+    if (error) console.error('Marking trip cancellation notice as read failed:', error);
+  };
 
   const [acceptingTripId, setAcceptingTripId] = useState<string | null>(null);
   const [raceConditionDetected, setRaceConditionDetected] = useState(false);
@@ -1032,22 +1114,6 @@ export const App: React.FC = () => {
             filter: `requester_id=eq.${profile.id}`,
           },
           (payload) => {
-            const updatedTrip = payload.new as {
-              requester_id?: string;
-              status?: string;
-              last_cancellation_actor_role?: string | null;
-              cancellation_reason?: string | null;
-            };
-            if (
-              updatedTrip.requester_id === profile.id &&
-              updatedTrip.status === 'pending' &&
-              updatedTrip.last_cancellation_actor_role === 'volunteer'
-            ) {
-              const reason = updatedTrip.cancellation_reason?.trim();
-              setTripNotice(
-                `اعتذر المتطوع عن إكمال الرحلة${reason ? ` بسبب: ${reason}` : ''}. طلبك ما زال قائمًا وسيظهر لمتطوعين آخرين قريبين منك.`,
-              );
-            }
             void fetchActiveRequesterTrip();
           },
         )
@@ -1077,22 +1143,6 @@ export const App: React.FC = () => {
           (payload) => {
             // Pending requests have no volunteer_id yet, so a filtered channel
             // misses new trips and volunteer-cancellation reopen events.
-            const updatedTrip = payload.new as {
-              volunteer_id?: string | null;
-              status?: string;
-              last_cancellation_actor_role?: string | null;
-              cancellation_reason?: string | null;
-            };
-            if (
-              updatedTrip.status === 'cancelled' &&
-              updatedTrip.last_cancellation_actor_role === 'requester' &&
-              updatedTrip.volunteer_id === profile.id
-            ) {
-              const reason = updatedTrip.cancellation_reason?.trim();
-              setTripNotice(
-                `ألغى طالب المساعدة الرحلة${reason ? ` بسبب: ${reason}` : ''}. أجرك على نيتك محفوظ بإذن الله؛ وعلى نياتكم تُرزقون.`,
-              );
-            }
             void loadActiveVolunteerTrip(profile.id);
             const currentLocation = volunteerLocationRef.current;
             if (currentLocation) void loadNearbyTrips(currentLocation);
@@ -2222,7 +2272,7 @@ export const App: React.FC = () => {
         <div role="status" aria-live="polite" className="mx-auto mt-3 flex w-[calc(100%-2rem)] max-w-2xl items-start gap-3 rounded-2xl border border-[#B9E4CB] bg-[#E8F7EE] p-4 text-right text-sm leading-6 text-[#005131] shadow-sm">
           <CheckCircle2 className="mt-1 h-5 w-5 shrink-0 text-[#146B44]" aria-hidden="true" />
           <p className="flex-1">{tripNotice}</p>
-          <button type="button" onClick={() => setTripNotice(null)} aria-label="إغلاق التنبيه" className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#146B44] hover:bg-white/70"><X className="h-4 w-4" /></button>
+          <button type="button" onClick={() => void dismissTripNotice()} aria-label="إغلاق التنبيه" className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#146B44] hover:bg-white/70"><X className="h-4 w-4" /></button>
         </div>
       )}
 
