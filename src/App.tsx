@@ -686,13 +686,30 @@ export const App: React.FC = () => {
   };
 
   const refreshPresenceCounts = async () => {
-    const { data, error } = await supabase.rpc('get_presence_counts');
-    if (error) { console.error('Loading online user counts failed:', error); setPresenceCounts({ shahm: null, patient: null }); return; }
-    const row = data?.[0];
-    if (row) setPresenceCounts({ shahm: Number(row.shahm_count) || 0, patient: Number(row.patient_count) || 0 });
+    try {
+      const { data, error } = await supabase.rpc('get_presence_counts');
+      if (error) {
+        // Keep the last good counts visible during transient RPC/network failures.
+        console.error('Loading online user counts failed:', error);
+        return;
+      }
+      const row = data?.[0];
+      if (row) {
+        setPresenceCounts({
+          shahm: Number.isFinite(Number(row.shahm_count)) ? Number(row.shahm_count) : 0,
+          patient: Number.isFinite(Number(row.patient_count)) ? Number(row.patient_count) : 0,
+        });
+      } else {
+        console.error('Loading online user counts returned no aggregate row.');
+      }
+    } catch (error) {
+      // Supabase RPC can reject before returning { error } on transport failures.
+      console.error('Loading online user counts threw an exception:', error);
+    }
   };
 
-  const updatePresence = async (profileId: string, online: boolean) => {
+
+ const updatePresence = async (profileId: string, online: boolean) => {
     const { error } = await supabase.rpc('update_my_presence', { p_profile_id: profileId, p_is_online: online });
     if (error) { console.error('Updating availability failed:', error); return false; }
     return true;
@@ -720,25 +737,32 @@ export const App: React.FC = () => {
   };
 
   const loadTripToRate = async (profileId: string) => {
-    const { data, error } = await supabase.rpc('get_my_trip_to_rate', { p_profile_id: profileId });
-    if (error) {
-      console.error('Loading a trip awaiting rating failed:', error);
+    try {
+      const { data, error } = await supabase.rpc('get_my_trip_to_rate', { p_profile_id: profileId });
+      if (error) {
+        // Rating is optional; an unavailable RPC must not block trip requests.
+        console.error('Loading a trip awaiting rating failed:', error);
+        setTripToRate(null);
+        return;
+      }
+      const trip = data?.[0] as TripToRate | undefined;
+      setTripToRate(trip ?? null);
+      const nextTripId = trip?.trip_id ?? null;
+      if (currentRatingTripId.current !== nextTripId) {
+        currentRatingTripId.current = nextTripId;
+        setSelectedTripStars(5);
+        setSelectedTripRatingWord(profile?.role === 'requester' ? PATIENT_RATING_WORDS[0] : VOLUNTEER_RATING_WORDS[0]);
+      }
+      if (trip?.other_profile_id) void loadRatingSummary(trip.other_profile_id);
+    } catch (error) {
+      // Empty pending-rating state is the safe fallback for transport errors.
+      console.error('Loading a trip awaiting rating threw an exception:', error);
       setTripToRate(null);
-      setErrorMessage('تعذر تحميل تقييم الرحلة. حدّث الصفحة وحاول مرة أخرى.');
-      return;
     }
-    const trip = data?.[0] as TripToRate | undefined;
-    setTripToRate(trip ?? null);
-    const nextTripId = trip?.trip_id ?? null;
-    if (currentRatingTripId.current !== nextTripId) {
-      currentRatingTripId.current = nextTripId;
-      setSelectedTripStars(5);
-      setSelectedTripRatingWord(profile?.role === 'requester' ? PATIENT_RATING_WORDS[0] : VOLUNTEER_RATING_WORDS[0]);
-    }
-    if (trip?.other_profile_id) void loadRatingSummary(trip.other_profile_id);
   };
 
-  const handleRateTrip = async () => {
+
+ const handleRateTrip = async () => {
     if (!profile?.id || !tripToRate || ratingSubmitting) return;
     setRatingSubmitting(true);
     const { error } = await supabase.rpc('rate_medical_trip', {
@@ -766,23 +790,52 @@ export const App: React.FC = () => {
 
   const saveVolunteerRoutePreference = async (enabled = routeFilterEnabled) => {
     if (!profile?.id || (enabled && !routeDestination)) return false;
-    setRoutePreferenceSaving(true); setRoutePreferenceMessage('');
-    const { error } = await supabase.from('volunteer_route_preferences').upsert({
-      volunteer_profile_id: profile.id, enabled,
-      destination_label: routeDestination?.areaLabel || null,
-      destination_address: routeDestination?.fullAddress || null,
-      destination_lat: routeDestination?.lat ?? null, destination_lng: routeDestination?.lng ?? null,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'volunteer_profile_id' });
-    setRoutePreferenceSaving(false);
-    if (error) { setRoutePreferenceMessage('تعذر حفظ وجهتك الآن. حاول مرة أخرى.'); return false; }
+    const areaLabel = routeDestination?.areaLabel.trim() ?? '';
+    const fullAddress = routeDestination?.fullAddress.trim() ?? '';
+    const lat = routeDestination?.lat;
+    const lng = routeDestination?.lng;
+    // Match the Egypt coordinate constraints in volunteer_route_preferences.
+    if (enabled && (!areaLabel || !fullAddress || !Number.isFinite(lat) || !Number.isFinite(lng)
+      || lat! < 22 || lat! > 31.7 || lng! < 24.5 || lng! > 37)) {
+      setRoutePreferenceMessage('اختَر وجهة داخل مصر مع عنوان وإحداثيات صحيحة.');
+      return false;
+    }
+
+    setRoutePreferenceSaving(true);
+    setRoutePreferenceMessage('');
+    try {
+      const { error } = await supabase.from('volunteer_route_preferences').upsert({
+        volunteer_profile_id: profile.id,
+        enabled,
+        destination_label: enabled ? areaLabel : (areaLabel || null),
+        destination_address: enabled ? fullAddress : (fullAddress || null),
+        destination_lat: enabled ? lat : (lat ?? null),
+        destination_lng: enabled ? lng : (lng ?? null),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'volunteer_profile_id' });
+      if (error) {
+        // Log Supabase details so missing migrations and RLS errors are diagnosable.
+        console.error('Saving volunteer route preference failed:', {
+          code: error.code, message: error.message, details: error.details, hint: error.hint,
+        });
+        setRoutePreferenceMessage('تعذر حفظ وجهتك الآن. حاول مرة أخرى.');
+        return false;
+      }
+    } catch (error) {
+      console.error('Saving volunteer route preference threw an exception:', error);
+      setRoutePreferenceMessage('تعذر حفظ وجهتك الآن. حاول مرة أخرى.');
+      return false;
+    } finally {
+      setRoutePreferenceSaving(false);
+    }
     setRouteFilterEnabled(enabled);
     setRoutePreferenceMessage(enabled ? 'تم حفظ وجهتك، وستظهر الطلبات الواقعة باتجاهها.' : 'تم إيقاف فلترة الطلبات حسب الوجهة.');
     if (volunteerLocation) { void loadNearbyTrips(volunteerLocation); void loadNearbyAssistanceRequests(volunteerLocation); }
     return true;
   };
 
-  const openTripDetails = async (trip: PublicTrip) => {
+
+ const openTripDetails = async (trip: PublicTrip) => {
     setSelectedTripDetails(trip); setSelectedTripAddresses(null); setTripDetailsLoading(true); setErrorMessage(null);
     if (!volunteerLocation) { setTripDetailsLoading(false); return; }
     const { data, error } = await supabase.rpc('get_pending_medical_trip_route', {
