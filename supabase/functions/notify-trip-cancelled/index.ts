@@ -168,7 +168,7 @@ Deno.serve(async (request) => {
       }
     } else {
       await sendPush(
-        [trip.volunteer_id],
+        [recipientProfileId],
         'تحديث بخصوص الرحلة',
         `ألغى طالب المساعدة الرحلة${reason ? ` بسبب: ${reason}` : ''}. أجرك على نيتك محفوظ بإذن الله؛ وعلى نياتكم تُرزقون.`,
         `trip-cancelled-${trip.id}`,
