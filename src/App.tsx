@@ -709,7 +709,7 @@ export const App: React.FC = () => {
   };
 
 
- const updatePresence = async (profileId: string, online: boolean) => {
+  const updatePresence = async (profileId: string, online: boolean) => {
     const { error } = await supabase.rpc('update_my_presence', { p_profile_id: profileId, p_is_online: online });
     if (error) { console.error('Updating availability failed:', error); return false; }
     return true;
@@ -762,7 +762,7 @@ export const App: React.FC = () => {
   };
 
 
- const handleRateTrip = async () => {
+  const handleRateTrip = async () => {
     if (!profile?.id || !tripToRate || ratingSubmitting) return;
     setRatingSubmitting(true);
     const { error } = await supabase.rpc('rate_medical_trip', {
@@ -835,7 +835,7 @@ export const App: React.FC = () => {
   };
 
 
- const openTripDetails = async (trip: PublicTrip) => {
+  const openTripDetails = async (trip: PublicTrip) => {
     setSelectedTripDetails(trip); setSelectedTripAddresses(null); setTripDetailsLoading(true); setErrorMessage(null);
     if (!volunteerLocation) { setTripDetailsLoading(false); return; }
     const { data, error } = await supabase.rpc('get_pending_medical_trip_route', {
