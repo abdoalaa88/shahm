@@ -840,7 +840,8 @@ export const App: React.FC = () => {
       setRoutePreferenceSaving(false);
     }
     setRouteFilterEnabled(enabled);
-    setRoutePreferenceMessage(clearDestination ? 'تم حذف الوجهة. يمكنك اختيار وجهة جديدة.' : enabled ? 'تم حفظ وجهتك، وستظهر الطلبات الواقعة باتجاهها.' : 'تم إيقاف فلترة الطلبات حسب الوجهة.');
+    // Keep the modal clean after removal; the empty picker is the confirmation.
+    setRoutePreferenceMessage(clearDestination ? '' : enabled ? 'تم حفظ وجهتك، وستظهر الطلبات الواقعة باتجاهها.' : 'تم إيقاف فلترة الطلبات حسب الوجهة.');
     if (volunteerLocation) { void loadNearbyTrips(volunteerLocation); void loadNearbyAssistanceRequests(volunteerLocation); }
     return true;
   };
