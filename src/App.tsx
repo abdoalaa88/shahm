@@ -296,6 +296,7 @@ export const App: React.FC = () => {
   const [cancelTripDetails, setCancelTripDetails] = useState('');
   const [cancelTripSubmitting, setCancelTripSubmitting] = useState(false);
   const [cancelTripError, setCancelTripError] = useState<string | null>(null);
+  const [tripNotice, setTripNotice] = useState<string | null>(null);
 
   const [selectedTripDetails, setSelectedTripDetails] =
     useState<PublicTrip | null>(null);
@@ -317,6 +318,7 @@ export const App: React.FC = () => {
   const volunteerLocationRef = useRef<{ lat: number; lng: number } | null>(null);
   const locationRequestInProgress = useRef(false);
   const nearbyTripsRequestInProgress = useRef(false);
+  const nearbyTripsRefreshQueued = useRef(false);
   const nearbyAssistanceRequestInProgress = useRef(false);
 
 
@@ -635,7 +637,13 @@ export const App: React.FC = () => {
     if (profile?.role !== 'volunteer' || !routePreferenceReady.current) return;
 
     const location = locationOverride || volunteerLocation;
-    if (!location || nearbyTripsRequestInProgress.current) return;
+    if (!location) return;
+    if (nearbyTripsRequestInProgress.current) {
+      // If Realtime fires during the first query, run one more query afterward
+      // so a just-created request cannot be lost behind the in-flight fetch.
+      nearbyTripsRefreshQueued.current = true;
+      return;
+    }
 
     nearbyTripsRequestInProgress.current = true;
     setLoadingNearbyTrips(true);
@@ -667,6 +675,11 @@ export const App: React.FC = () => {
     } finally {
       nearbyTripsRequestInProgress.current = false;
       setLoadingNearbyTrips(false);
+      if (nearbyTripsRefreshQueued.current) {
+        nearbyTripsRefreshQueued.current = false;
+        const latestLocation = volunteerLocationRef.current || location;
+        window.setTimeout(() => void loadNearbyTrips(latestLocation), 0);
+      }
     }
   };
 
@@ -977,6 +990,9 @@ export const App: React.FC = () => {
           people_count: row.people_count,
           request_notes: row.request_notes,
           patient_profile_id: row.patient_profile_id,
+          cancellation_reason: row.cancellation_reason ?? null,
+          last_cancellation_actor_role: row.last_cancellation_actor_role ?? null,
+          last_cancelled_at: row.last_cancelled_at ?? null,
         };
         setActiveRequesterTrip(trip);
         if (row.volunteer_profile_id) void loadRatingSummary(row.volunteer_profile_id);
@@ -1009,7 +1025,25 @@ export const App: React.FC = () => {
             table: 'trips',
             filter: `requester_id=eq.${profile.id}`,
           },
-          () => fetchActiveRequesterTrip(),
+          (payload) => {
+            const updatedTrip = payload.new as {
+              requester_id?: string;
+              status?: string;
+              last_cancellation_actor_role?: string | null;
+              cancellation_reason?: string | null;
+            };
+            if (
+              updatedTrip.requester_id === profile.id &&
+              updatedTrip.status === 'pending' &&
+              updatedTrip.last_cancellation_actor_role === 'volunteer'
+            ) {
+              const reason = updatedTrip.cancellation_reason?.trim();
+              setTripNotice(
+                `اعتذر المتطوع عن إكمال الرحلة${reason ? ` بسبب: ${reason}` : ''}. طلبك ما زال قائمًا وسيظهر لمتطوعين آخرين قريبين منك.`,
+              );
+            }
+            void fetchActiveRequesterTrip();
+          },
         )
         .subscribe();
 
@@ -1033,10 +1067,29 @@ export const App: React.FC = () => {
             event: '*',
             schema: 'public',
             table: 'trips',
-            filter: `volunteer_id=eq.${profile.id}`,
           },
-          () => {
+          (payload) => {
+            // Pending requests have no volunteer_id yet, so a filtered channel
+            // misses new trips and volunteer-cancellation reopen events.
+            const updatedTrip = payload.new as {
+              volunteer_id?: string | null;
+              status?: string;
+              last_cancellation_actor_role?: string | null;
+              cancellation_reason?: string | null;
+            };
+            if (
+              updatedTrip.status === 'cancelled' &&
+              updatedTrip.last_cancellation_actor_role === 'requester' &&
+              updatedTrip.volunteer_id === profile.id
+            ) {
+              const reason = updatedTrip.cancellation_reason?.trim();
+              setTripNotice(
+                `ألغى طالب المساعدة الرحلة${reason ? ` بسبب: ${reason}` : ''}. أجرك على نيتك محفوظ بإذن الله؛ وعلى نياتكم تُرزقون.`,
+              );
+            }
             void loadActiveVolunteerTrip(profile.id);
+            const currentLocation = volunteerLocationRef.current;
+            if (currentLocation) void loadNearbyTrips(currentLocation);
           },
         )
         .subscribe();
@@ -1729,17 +1782,29 @@ export const App: React.FC = () => {
     const reason = cancelTripReason === 'other' ? cancelTripDetails.trim() : cancelTripReason;
     if (reason.length < 5) { setCancelTripError('اكتب سبب الإلغاء بوضوح.'); return; }
     setCancelTripSubmitting(true);
-    const { error } = profile.role === 'volunteer'
+    const { data: cancellationEventId, error } = profile.role === 'volunteer'
       ? await supabase.rpc('volunteer_cancel_medical_trip', { p_trip_id: tripId, p_volunteer_profile_id: profile.id, p_reason: reason })
       : await supabase.rpc('cancel_medical_trip', { p_trip_id: tripId, p_requester_profile_id: profile.id, p_reason: reason });
     setCancelTripSubmitting(false);
 
     if (!error) {
+      if (typeof cancellationEventId === 'string') {
+        // Push is best-effort; the trip update itself and the in-app Realtime notice are authoritative.
+        void supabase.functions.invoke('notify-trip-cancelled', {
+          body: { trip_id: tripId, event_id: cancellationEventId },
+        }).then(({ error: notificationError }) => {
+          if (notificationError) console.error('Sending trip cancellation notification failed:', notificationError);
+        }).catch((notificationError) => {
+          console.error('Sending trip cancellation notification threw an exception:', notificationError);
+        });
+      }
       if (profile.role === 'volunteer') {
         setActiveVolunteerTripData(null);
+        setTripNotice('اعتذرت عن إكمال الرحلة، لكن طلب المريض ما زال قائمًا وسيظهر لمتطوعين آخرين قريبين.');
         if (volunteerLocation) void loadNearbyTrips(volunteerLocation);
       } else {
         setActiveRequesterTrip(null);
+        setTripNotice('تم إلغاء الرحلة. شكرًا لإبلاغنا، ونتمنى لكم السلامة.');
       }
       setCancelTripId(null);
       setCancelTripReason('');
@@ -2147,6 +2212,14 @@ export const App: React.FC = () => {
         </div>
       </header>
 
+      {tripNotice && (
+        <div role="status" aria-live="polite" className="mx-auto mt-3 flex w-[calc(100%-2rem)] max-w-2xl items-start gap-3 rounded-2xl border border-[#B9E4CB] bg-[#E8F7EE] p-4 text-right text-sm leading-6 text-[#005131] shadow-sm">
+          <CheckCircle2 className="mt-1 h-5 w-5 shrink-0 text-[#146B44]" aria-hidden="true" />
+          <p className="flex-1">{tripNotice}</p>
+          <button type="button" onClick={() => setTripNotice(null)} aria-label="إغلاق التنبيه" className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#146B44] hover:bg-white/70"><X className="h-4 w-4" /></button>
+        </div>
+      )}
+
       <main dir="rtl" id="main-content" data-page={isProfilePage ? 'account' : isGuidancePage ? 'guidance' : 'trips'} className={'shahm-app-main flex-1 max-w-2xl w-full mx-auto bg-[#F7F8F9] px-4 pt-0 pb-[calc(7rem+env(safe-area-inset-bottom))] space-y-4' + (isProfilePage ? ' is-account-page' : isGuidancePage ? ' is-guidance-page' : '')}>
         <section className="shahm-home-hero border border-[#D8EEE1] bg-[#F0FBF4] px-5 pb-6 pt-5 text-center">
           <div className="shahm-hero-logo mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full border-[7px] border-[#DDEFE5] bg-white shadow-sm">
@@ -2213,9 +2286,15 @@ export const App: React.FC = () => {
                     </h3>
 
                     <p className="text-sm leading-6 text-[#53645a]">
-                      طلبك ظاهر للشهمين القريبين منك، لحين قبول أحدهم.
+                      طلبك ظاهر لأكثر من متطوع قريب منك، لحين قبول أحدهم.
                     </p>
 
+                    {activeRequesterTrip.last_cancellation_actor_role === 'volunteer' && (
+                      <div role="status" className="mb-4 rounded-xl border border-[#F3D89B] bg-[#FFF8E8] p-3 text-right text-xs leading-6 text-[#74551C]">
+                        اعتذر المتطوع عن إكمال الرحلة، لكن طلبك ما زال قائمًا وسيظهر لمتطوعين آخرين قريبين منك.
+                        {activeRequesterTrip.cancellation_reason && <span className="mt-1 block">سبب الاعتذار: {activeRequesterTrip.cancellation_reason}</span>}
+                      </div>
+                    )}
                     <div className="rounded-2xl border border-[#146B44]/10 bg-[#F7FBF8] p-4 text-right text-sm space-y-3">
                       <div className="flex items-center justify-between gap-3"><span className="text-[#6B7280]">المريض</span><strong>{patientProfiles.find((patient) => patient.id === activeRequesterTrip.patient_profile_id)?.full_name || 'المريض'}</strong></div>
                       <div className="flex items-center justify-between gap-3"><span className="text-[#6B7280]">من</span><strong>{activeRequesterTrip.origin_area_label}</strong></div>
