@@ -75,10 +75,17 @@ export async function registerPushNotifications(
         subscription: JSON.parse(JSON.stringify(subscription.toJSON())),
         updated_at: new Date().toISOString(),
       },
-      { onConflict: 'endpoint' }
+      // Scope this browser subscription to the signed-in profile; RLS remains owner-only.
+      { onConflict: 'user_id,endpoint' }
     );
 
-    return !error;
+    if (error) {
+      console.error('Saving push subscription failed:', {
+        code: error.code, message: error.message, details: error.details, hint: error.hint,
+      });
+      return false;
+    }
+    return true;
   } catch (err) {
     console.error('Push registration failed:', err);
     return false;
