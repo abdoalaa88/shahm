@@ -68,6 +68,10 @@ export interface PublicTrip {
   people_count?: number;
   request_notes?: string;
   patient_profile_id?: string | null;
+  // Persisted cancellation metadata lets the requester understand a reopened trip after realtime refreshes.
+  cancellation_reason?: string | null;
+  last_cancellation_actor_role?: UserRole | null;
+  last_cancelled_at?: string | null;
 }
 
 export interface PatientProfile {
