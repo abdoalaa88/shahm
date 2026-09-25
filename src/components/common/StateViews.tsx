@@ -5,12 +5,30 @@ import { registerPushNotifications } from '../../lib/push';
 export const EmptyVolunteersFeed: React.FC = () => {
   const [pushEnabled, setPushEnabled] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [pushError, setPushError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void registerPushNotifications().then((enabled) => {
+      if (!cancelled) setPushEnabled(enabled);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const handleEnablePush = async () => {
     setLoading(true);
-    const success = await registerPushNotifications();
-    setLoading(false);
-    if (success) setPushEnabled(true);
+    setPushError(null);
+    try {
+      const success = await registerPushNotifications(undefined, {
+        requestPermission: true,
+      });
+      if (success) setPushEnabled(true);
+      else setPushError('تعذر تفعيل الإشعارات. اسمح بها من إعدادات المتصفح ثم حاول مرة أخرى.');
+    } catch {
+      setPushError('تعذر تفعيل الإشعارات. تحقق من الاتصال ثم حاول مرة أخرى.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -23,8 +41,11 @@ export const EmptyVolunteersFeed: React.FC = () => {
         هنبلغك أول ما يظهر طلب في منطقتك. تقدر تفعّل الإشعارات عشان يوصلك تنبيه فوري.
       </p>
 
+      {pushError && <p role="alert" className="text-xs text-[#B53A3A]">{pushError}</p>}
+
       {!pushEnabled ? (
         <button
+          type="button"
           onClick={handleEnablePush}
           disabled={loading}
           className="h-10 px-4 bg-[#E6F4ED] text-[#146B44] text-xs font-semibold rounded-xl hover:bg-[#146B44] hover:text-white transition-colors inline-flex items-center gap-1.5"

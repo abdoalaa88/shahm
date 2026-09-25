@@ -36,6 +36,37 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 input, select, textarea { color: var(--shahm-ink); }
 input::placeholder { color: #78847b; }
 
+/* Animated PWA launch: twin wheels rotate in opposite directions as the mark crosses the screen. */
+#startup-splash { transition:opacity .38s ease, visibility .38s ease; }
+#startup-splash.app-ready .startup-car { animation:startup-car-pass 2s cubic-bezier(.45,0,.55,1) both; }
+#startup-splash.app-ready .startup-wheel-left i { animation:startup-wheel-clockwise .88s linear infinite; }
+#startup-splash.app-ready .startup-wheel-right i { animation:startup-wheel-counter .88s linear infinite; }
+#startup-splash.app-ready .startup-wordmark { animation:startup-wordmark-show 2s ease both; }
+#startup-splash.startup-splash-exit { opacity:0; visibility:hidden; pointer-events:none; }
+.startup-track { position:relative; width:190px; height:128px; }
+.startup-car { position:absolute; inset:0; transform:translateX(115vw); }
+.startup-car-body { position:absolute; z-index:1; top:7px; left:29px; width:132px; height:93px; display:grid; place-items:center; border:3px solid #cdebd9; border-radius:54px 54px 22px 22px; background:#005131; box-shadow:0 12px 28px rgba(0,81,49,.15); }
+.startup-car-body img { width:68px; height:68px; object-fit:contain; border-radius:50%; }
+.startup-wheel { position:absolute; z-index:2; bottom:1px; width:46px; height:46px; box-sizing:border-box; display:grid; place-items:center; border:6px solid #146b44; border-radius:50%; background:#fafffb; box-shadow:0 4px 9px rgba(0,81,49,.14); }
+.startup-wheel-left { left:18px; }
+.startup-wheel-right { right:18px; }
+.startup-wheel i { position:relative; display:block; width:23px; height:23px; border:2px dashed #57ac7d; border-radius:50%; }
+.startup-wheel i::after { content:""; position:absolute; top:50%; left:50%; width:5px; height:5px; transform:translate(-50%,-50%); border-radius:50%; background:#146b44; }
+.startup-wordmark { opacity:0; }
+@keyframes startup-car-pass {
+  0% { transform:translateX(115vw); }
+  37% { transform:translateX(0); }
+  62% { transform:translateX(0); }
+  100% { transform:translateX(-115vw); }
+}
+@keyframes startup-wheel-clockwise { to { transform:rotate(360deg); } }
+@keyframes startup-wheel-counter { to { transform:rotate(-360deg); } }
+@keyframes startup-wordmark-show {
+  0%, 29% { opacity:0; transform:translateY(5px); }
+  40%, 66% { opacity:1; transform:translateY(0); }
+  100% { opacity:0; transform:translateY(-4px); }
+}
+
 /* Public entry and role selection */
 .shahm-auth-page {
   min-height: 100dvh;
@@ -53,8 +84,16 @@ input::placeholder { color: #78847b; }
 .shahm-public-badge svg { width:16px; height:16px; color:var(--shahm-jade); }
 .shahm-welcome { width:min(100%, 1120px); flex:1; display:grid; align-content:center; justify-items:center; gap:34px; padding:32px 0; }
 .welcome-hero { width:min(100%, 600px); text-align:center; display:flex; flex-direction:column; align-items:center; }
-.welcome-mark { width:98px; height:98px; display:grid; place-items:center; border-radius:50%; background:#fff; border:7px solid #dbece0; box-shadow:var(--shahm-shadow); }
-.welcome-mark img { width:58px; height:58px; object-fit:contain; }
+.welcome-mark { width:98px; height:98px; display:grid; place-items:center; border-radius:50%; background:#fff; border:7px solid #dbece0; box-shadow:var(--shahm-shadow); perspective:1000px; }
+.welcome-logo-spin { position:relative; display:grid; place-items:center; width:42px; height:42px; transform-style:preserve-3d; transform-origin:50% 55%; animation:welcome-logo-sway 3.6s ease-in-out infinite; will-change:transform; }
+.welcome-logo-spin::before { content:""; position:absolute; inset:0; z-index:0; background:url("/shahm-logo-mark-20260924.png") center / contain no-repeat; opacity:.12; transform:translateZ(-2px); }
+.welcome-logo-spin img { position:relative; z-index:1; display:block; width:100%; height:100%; object-fit:contain; }
+@keyframes welcome-logo-sway {
+  0%, 100% { transform:translate3d(0,0,0) rotateY(-8deg) rotateZ(-1deg) scale(1); }
+  25% { transform:translate3d(0,-2px,0) rotateY(0deg) rotateZ(1deg) scale(1.015); }
+  50% { transform:translate3d(0,0,0) rotateY(8deg) rotateZ(-1deg) scale(1); }
+  75% { transform:translate3d(0,-2px,0) rotateY(0deg) rotateZ(1deg) scale(1.015); }
+}
 .welcome-kicker { margin-top:20px; padding:7px 16px; background:#d5f8e2; color:var(--shahm-green); border-radius:999px; font-size:13px; font-weight:600; }
 .welcome-hero h1 { margin:15px 0 0; font-size:20px; line-height:1.5; font-weight:700; color:var(--shahm-ink); }
 .welcome-lead { margin:2px 0 0; color:var(--shahm-green); font-size:34px; line-height:1.35; font-weight:800; }
@@ -93,12 +132,22 @@ input::placeholder { color: #78847b; }
 
 /* Logged-in app frame */
 .shahm-app-shell { background:var(--shahm-canvas) !important; }
-.shahm-app-header { background:rgba(255,255,255,.92) !important; border-color:rgba(0,81,49,.09) !important; backdrop-filter:blur(14px); }
-.shahm-app-header > div { min-height:52px !important; }
-.shahm-app-main { background:transparent !important; width:min(100%, 760px) !important; max-width:760px !important; padding-top:20px !important; }
-.shahm-app-main > section:first-child:not(:has(nav)) { border-color:rgba(0,81,49,.08) !important; background:linear-gradient(180deg,#e9fff0 0%,#e3f8e9 100%) !important; border-radius:0 0 28px 28px; }
+.shahm-app-header { background:rgba(255,255,255,.94) !important; border-color:rgba(0,81,49,.09) !important; backdrop-filter:blur(14px); padding-top:8px !important; padding-bottom:8px !important; }
+.shahm-app-header > div { min-height:0 !important; }
+.shahm-app-main { box-sizing:border-box; background:transparent !important; width:min(100%, 760px) !important; max-width:760px !important; padding-top:0 !important; }
+.shahm-app-main > section:first-child:not(:has(nav)) { box-sizing:border-box; border-color:rgba(0,81,49,.08) !important; background:linear-gradient(180deg,#e9fff0 0%,#e3f8e9 100%) !important; border-radius:0 0 26px 26px; padding-top:14px !important; padding-bottom:18px !important; }
+.shahm-app-main > section:first-child:not(:has(nav)) .shahm-hero-logo { width:76px; height:76px; margin-bottom:10px; border-width:6px; }
+.shahm-app-main > section:first-child:not(:has(nav)) .shahm-hero-logo img { width:44px; height:44px; }
+.shahm-app-main.is-account-page > :not(.account-page-content), .shahm-app-main.is-guidance-page > :not(.guidance-page-content) { display:none !important; }
+.shahm-app-main.is-account-page > .account-page-content, .shahm-app-main.is-guidance-page > .guidance-page-content { display:block; margin-top:0 !important; }
+.account-page-content, .guidance-page-content { box-sizing:border-box; min-height:calc(100dvh - 250px - env(safe-area-inset-bottom)); }
+.account-page-content label { display:block; }
+.account-page-content input, .account-page-content select, .account-page-content textarea { width:100%; max-width:100%; box-sizing:border-box; }
+.shahm-hero-logo { animation:shahm-logo-pulse 2.2s ease-in-out infinite; transform-origin:center; }
+@keyframes shahm-logo-pulse { 0%,100% { transform:scale(1); box-shadow:0 2px 8px rgba(0,81,49,.08),0 0 0 0 rgba(30,142,90,0); } 50% { transform:scale(1.045); box-shadow:0 5px 17px rgba(0,81,49,.14),0 0 0 8px rgba(30,142,90,.10); } }
 .shahm-app-main blockquote { border-color:rgba(0,81,49,.1) !important; background:#e6f8ec !important; border-radius:24px !important; padding:23px !important; font-size:18px !important; line-height:1.9 !important; }
 .shahm-app-main .shahm-form-card, .shahm-app-main .shahm-trip-card, .shahm-app-main .shahm-request-card { padding:22px !important; }
+.shahm-app-main .shahm-form-card, .shahm-app-main .shahm-trip-card, .shahm-app-main .shahm-request-card { box-sizing:border-box; width:100%; overflow-wrap:anywhere; }
 .shahm-app-main h1, .shahm-app-main h2, .shahm-app-main h3 { letter-spacing:0; line-height:1.55; }
 .shahm-app-main button:not([aria-label]) { text-align:center; }
 .shahm-app-main label { line-height:1.75; }
@@ -110,14 +159,19 @@ input::placeholder { color: #78847b; }
 .shahm-app-shell > nav[aria-label="التنقل الرئيسي"] button:hover { background:#f1fbf4; }
 .shahm-request-card { transition:transform .16s ease, box-shadow .16s ease; }
 .shahm-request-card:hover { transform:translateY(-1px); box-shadow:var(--shahm-shadow); }
+.shahm-accept-pulse { animation:shahm-accept-pulse 2.2s ease-in-out infinite; transform-origin:center; }
+.animate-request-card-enter { animation:request-card-enter .2s ease-out both; }
+@keyframes shahm-accept-pulse { 0%, 100% { transform:scale(1); box-shadow:0 4px 14px rgba(8,120,75,.17); } 50% { transform:scale(1.018); box-shadow:0 7px 22px rgba(8,120,75,.29); } }
+@keyframes request-card-enter { from { opacity:0; transform:translateY(8px) scale(.98); } to { opacity:1; transform:translateY(0) scale(1); } }
 [role="dialog"] > section, [role="dialog"] > div { border-color:rgba(0,81,49,.1); box-shadow:0 20px 70px rgba(16,31,23,.24); }
 
 @media (min-width:768px) {
   .shahm-welcome { grid-template-columns:minmax(0,1fr); gap:42px; }
   .welcome-mark { width:112px; height:112px; }
-  .welcome-mark img { width:66px; height:66px; }
+  .welcome-logo-spin { width:48px; height:48px; }
   .welcome-community { padding:26px 40px; }
   .shahm-app-main { padding-left:24px !important; padding-right:24px !important; }
+  .account-page-content, .guidance-page-content { min-height:calc(100vh - 240px); padding:28px !important; }
 }
 @media (max-width:420px) {
   .shahm-auth-page { padding-left:16px; padding-right:16px; }
@@ -125,7 +179,7 @@ input::placeholder { color: #78847b; }
   .shahm-public-badge { font-size:11px; padding:7px 10px; }
   .shahm-welcome { gap:24px; padding:24px 0 18px; }
   .welcome-mark { width:84px; height:84px; border-width:6px; }
-  .welcome-mark img { width:50px; height:50px; }
+  .welcome-logo-spin { width:36px; height:36px; }
   .welcome-kicker { margin-top:15px; font-size:12px; }
   .welcome-lead { font-size:30px; }
   .welcome-description { font-size:14px; line-height:1.8; }
@@ -135,12 +189,18 @@ input::placeholder { color: #78847b; }
   .welcome-community p { font-size:16px; line-height:1.8; }
   .community-ornament { width:34px; height:34px; }
   .shahm-auth-card { padding:22px !important; }
-  .shahm-app-main { padding-left:14px !important; padding-right:14px !important; }
-  .shahm-app-main > section:first-child:not(:has(nav)) { margin-left:-14px; margin-right:-14px; }
-  .shahm-app-main .shahm-form-card, .shahm-app-main .shahm-trip-card, .shahm-app-main .shahm-request-card { padding:18px !important; }
+  .shahm-app-header { padding-left:12px !important; padding-right:12px !important; }
+  .shahm-app-main { padding-left:12px !important; padding-right:12px !important; }
+  .shahm-app-main > section:first-child:not(:has(nav)) { margin-left:-12px; margin-right:-12px; }
+  .shahm-app-main .shahm-form-card, .shahm-app-main .shahm-trip-card, .shahm-app-main .shahm-request-card { padding:15px !important; }
+  .shahm-app-shell > nav[aria-label="التنقل الرئيسي"] button { min-height:64px; }
+  .account-page-content, .guidance-page-content { min-height:calc(100dvh - 250px - env(safe-area-inset-bottom)); border-radius:22px !important; }
 }
+@media (prefers-reduced-motion:reduce) { .shahm-hero-logo { animation:none; } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior:auto !important; animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
+  .welcome-logo-spin { animation:none; will-change:auto; }
+  #startup-splash .startup-car { transform:translateX(0); }
 }
 .signup-brand-lockup { display:flex; align-items:center; justify-content:center; gap:9px; margin-bottom:20px; color:var(--shahm-green); font-size:20px; font-weight:800; }
 .signup-brand-lockup img { width:38px; height:38px; object-fit:contain; }

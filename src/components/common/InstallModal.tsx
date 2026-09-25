@@ -20,7 +20,7 @@ export const InstallModal: React.FC<InstallModalProps> = ({ deferredPrompt, onCl
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div className="bg-white rounded-2xl max-w-md w-full p-6 relative shadow-xl">
         <button
           onClick={onClose}

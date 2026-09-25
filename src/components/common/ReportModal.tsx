@@ -5,6 +5,8 @@ import { AlertTriangle, X, Loader2 } from 'lucide-react';
 interface ReportModalProps {
   tripId?: string;
   reportedProfileId?: string | null;
+  reporterProfileId: string;
+  reporterRole: 'requester' | 'volunteer';
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
@@ -13,20 +15,39 @@ interface ReportModalProps {
 export const ReportModal: React.FC<ReportModalProps> = ({
   tripId,
   reportedProfileId,
+  reporterProfileId,
+  reporterRole,
   isOpen,
   onClose,
   onSuccess,
 }) => {
+  const [category, setCategory] = useState('');
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
+  const categories = reporterRole === 'volunteer'
+    ? [
+      ['plate_incorrect', 'رقم لوحة السيارة غير صحيح'],
+      ['vehicle_color_incorrect', 'لون السيارة غير صحيح'],
+      ['harassment', 'تحرش أو مضايقة'],
+      ['abusive_behavior', 'أسلوب مسيء'],
+      ['other', 'سبب آخر'],
+    ]
+    : [
+      ['harassment', 'تحرش أو مضايقة'],
+      ['abusive_behavior', 'أسلوب مسيء'],
+      ['scam', 'نصب أو احتيال'],
+      ['not_eligible', 'غير مستحق للمساعدة'],
+      ['other', 'سبب آخر'],
+    ];
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (reason.trim().length < 5) {
-      setErrorMsg('يرجى توضيح سبب المشكلة بما لا يقل عن 5 أحرف');
+    if (!category || reason.trim().length < 5) {
+      setErrorMsg('اختر تصنيف البلاغ واكتب تفاصيل لا تقل عن 5 أحرف.');
       return;
     }
 
@@ -36,6 +57,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     const { error } = await supabase.rpc('submit_report', {
       p_trip_id: tripId || null,
       p_reported_profile_id: reportedProfileId || null,
+      p_reporter_profile_id: reporterProfileId,
+      p_category: category,
       p_reason: reason.trim(),
     });
 
@@ -45,13 +68,14 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       setErrorMsg(error.message);
     } else {
       setReason('');
+      setCategory('');
       onSuccess();
       onClose();
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }} role="dialog" aria-modal="true">
       <div className="bg-white rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-lg text-right">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -72,6 +96,12 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         {errorMsg && <div className="p-2.5 bg-[#FCEAEA] text-[#B53A3A] text-xs rounded-xl">{errorMsg}</div>}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <label className="block text-xs font-semibold text-[#1F2430]">تصنيف البلاغ
+            <select required value={category} onChange={(e) => setCategory(e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#8A949E] bg-white px-3 text-sm">
+              <option value="">اختر نوع المشكلة</option>
+              {categories.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
           <div>
             <textarea
               rows={4}

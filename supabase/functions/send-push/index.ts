@@ -20,7 +20,7 @@ type StoredSubscription = {
 };
 
 // Notification targeting for new trips (see get_nearby_volunteer_ids).
-const NEARBY_RADIUS_KM = 20;
+const NEARBY_RADIUS_KM = 7;
 const LOCATION_MAX_AGE_MINUTES = 180;
 
 const jsonResponse = (status: number, body: Record<string, unknown>) =>
@@ -100,7 +100,7 @@ Deno.serve(async (request) => {
 
   const { data: subscriptions, error: subsError } = await serviceClient
     .from('push_subscriptions')
-    .select('user_id, subscription')
+    .select('user_id, endpoint, subscription')
     .in('user_id', targetUserIds);
 
   if (subsError) {
@@ -116,10 +116,10 @@ Deno.serve(async (request) => {
 
   let sent = 0;
   let failed = 0;
-  const staleUserIds: string[] = [];
+  const staleEndpoints = new Set<string>();
 
   await Promise.all(
-    (subscriptions ?? []).map(async (row: { user_id: string; subscription: StoredSubscription }) => {
+    (subscriptions ?? []).map(async (row: { user_id: string; endpoint: string; subscription: StoredSubscription }) => {
       try {
         await webpush.sendNotification(row.subscription, notificationPayload);
         sent += 1;
@@ -127,7 +127,7 @@ Deno.serve(async (request) => {
         failed += 1;
         const statusCode = (err as { statusCode?: number })?.statusCode;
         if (statusCode === 404 || statusCode === 410) {
-          staleUserIds.push(row.user_id);
+          staleEndpoints.add(row.endpoint);
         } else {
           console.error('push send failed', { user_id: row.user_id, statusCode });
         }
@@ -135,9 +135,9 @@ Deno.serve(async (request) => {
     })
   );
 
-  if (staleUserIds.length > 0) {
-    await serviceClient.from('push_subscriptions').delete().in('user_id', staleUserIds);
+  if (staleEndpoints.size > 0) {
+    await serviceClient.from('push_subscriptions').delete().in('endpoint', [...staleEndpoints]);
   }
 
-  return jsonResponse(200, { sent, failed, pruned: staleUserIds.length });
+  return jsonResponse(200, { sent, failed, pruned: staleEndpoints.size });
 });

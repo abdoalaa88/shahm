@@ -1,5 +1,14 @@
 -- Clean Shahm baseline. Replays the reviewed application migration chain on a fresh public schema.
 -- Supabase internal schemas are preserved. Existing test auth users are removed after their public profile references are removed.
+-- Destructive by design: this file is only for an explicitly selected disposable test database.
+DO $$
+BEGIN
+  IF current_setting('shahm.allow_destructive_baseline', true) IS DISTINCT FROM 'on' THEN
+    RAISE EXCEPTION 'Refusing destructive Shahm baseline. Set shahm.allow_destructive_baseline=on in this same database session only for a disposable test database.';
+  END IF;
+END
+$$;
+
 drop policy if exists verification_documents_storage_insert on storage.objects;
 drop policy if exists verification_documents_storage_admin_read on storage.objects;
 drop policy if exists verification_documents_storage_admin_delete on storage.objects;
@@ -101,11 +110,13 @@ create table public.audit_logs (
 );
 
 create table public.push_subscriptions (
-  user_id uuid primary key references public.profiles(id) on delete cascade,
+  endpoint text primary key,
+  user_id uuid not null references public.profiles(id) on delete cascade,
   subscription jsonb not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+create index idx_push_subscriptions_user_id on public.push_subscriptions(user_id);
 
 create index idx_trips_pending_created_at on public.trips (created_at desc) where status = 'pending';
 create index idx_trips_requester_status on public.trips (requester_id, status);
@@ -488,7 +499,7 @@ alter table public.trips
 add constraint trips_scheduled_at_check
 check (
 scheduled_at is not null
-and scheduled_at >= created_at - interval '1 minute'
+and scheduled_at >= created_at - interval '2 minutes'
 );
 
 create index if not exists idx_trips_pending_scheduled_at
@@ -714,7 +725,7 @@ raise exception 'requester role required';
 end if;
 
 if p_scheduled_at is null
-or p_scheduled_at < now()
+or p_scheduled_at < now() - interval '2 minutes'
 or p_scheduled_at > now() + interval '48 hours' then
 raise exception 'appointment must be within the next 48 hours';
 end if;
@@ -858,7 +869,7 @@ raise exception 'authentication and trusted client IP are required';
 end if;
 
 if p_scheduled_at is null
-or p_scheduled_at < now()
+or p_scheduled_at < now() - interval '2 minutes'
 or p_scheduled_at > now() + interval '48 hours' then
 raise exception 'appointment must be within the next 48 hours';
 end if;
@@ -2262,7 +2273,7 @@ begin
   join public.trip_locations l
     on l.trip_id = t.id
   where t.status = 'pending'
-    and t.scheduled_at >= now()
+    and t.scheduled_at >= now() - interval '2 minutes'
     and (
       6371 * acos(
         least(
@@ -2907,7 +2918,7 @@ begin
   join public.trip_locations l
     on l.trip_id = t.id
   where t.status = 'pending'
-    and t.scheduled_at >= now()
+    and t.scheduled_at >= now() - interval '2 minutes'
     and (
       6371 * acos(
         least(
@@ -3318,7 +3329,7 @@ begin
     raise exception 'requester and trusted client IP are required';
   end if;
   if p_scheduled_at is null
-     or p_scheduled_at < now()
+     or p_scheduled_at < now() - interval '2 minutes'
      or p_scheduled_at > now() + interval '48 hours' then
     raise exception 'appointment must be within the next 48 hours';
   end if;
@@ -3381,7 +3392,7 @@ begin
     raise exception 'authentication and trusted client IP are required';
   end if;
   if p_scheduled_at is null
-     or p_scheduled_at < now()
+     or p_scheduled_at < now() - interval '2 minutes'
      or p_scheduled_at > now() + interval '48 hours' then
     raise exception 'appointment must be within the next 48 hours';
   end if;
@@ -3509,7 +3520,7 @@ begin
   from public.trips t
   join public.trip_locations l on l.trip_id = t.id
   where t.status = 'pending'
-    and t.scheduled_at >= now()
+    and t.scheduled_at >= now() - interval '2 minutes'
     and (6371 * acos(least(1.0, greatest(-1.0,
       cos(radians(p_lat)) * cos(radians(l.origin_lat))
       * cos(radians(l.origin_lng) - radians(p_lng))
@@ -3679,7 +3690,7 @@ begin
   if v_requester_profile_id is null or p_client_ip is null then
     raise exception 'requester and trusted client IP are required';
   end if;
-  if p_scheduled_at is null or p_scheduled_at < now() or p_scheduled_at > now() + interval '48 hours' then
+  if p_scheduled_at is null or p_scheduled_at < now() - interval '2 minutes' or p_scheduled_at > now() + interval '48 hours' then
     raise exception 'appointment must be within the next 48 hours';
   end if;
   if p_passenger_count is null or p_passenger_count not between 1 and 4 then
@@ -3743,7 +3754,7 @@ begin
       + sin(radians(p_lat)) * sin(radians(l.origin_lat))))))::numeric, 2)::double precision,
     t.passenger_count, t.special_notes
   from public.trips t join public.trip_locations l on l.trip_id = t.id
-  where t.status = 'pending' and t.scheduled_at >= now()
+  where t.status = 'pending' and t.scheduled_at >= now() - interval '2 minutes'
     and (6371 * acos(least(1.0, greatest(-1.0,
       cos(radians(p_lat)) * cos(radians(l.origin_lat)) * cos(radians(l.origin_lng) - radians(p_lng))
       + sin(radians(p_lat)) * sin(radians(l.origin_lat)))))) <= least(greatest(coalesce(p_radius_km, 7), 0), 7)
@@ -5068,7 +5079,7 @@ begin
 
   if not exists (
     select 1 from public.profiles p
-    where p.id = v_user_id
+    where p.auth_user_id = v_user_id
       and p.role = 'volunteer'::public.user_role
       and p.is_active
   ) then
@@ -5155,7 +5166,7 @@ begin
   ) then
     raise exception 'requester role required';
   end if;
-  if p_scheduled_at is null or p_scheduled_at < now()
+  if p_scheduled_at is null or p_scheduled_at < now() - interval '2 minutes'
     or p_scheduled_at > now() + interval '48 hours' then
     raise exception 'appointment must be within the next 48 hours';
   end if;

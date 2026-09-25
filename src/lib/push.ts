@@ -1,18 +1,5 @@
 import { supabase } from './supabase';
 
-/**
- * ملاحظة إصلاح: كان مكوّن StateViews.tsx يستورد
- * `registerPushNotifications` من './lib/push' لكن هذا الملف
- * لم يكن موجوداً إطلاقاً في التسليم الأصلي — وهو خطأ بناء (build-breaking)
- * لأن الاستيراد كان سيفشل فوراً في npm run build.
- *
- * التنفيذ أدناه يفترض:
- * - وجود VITE_VAPID_PUBLIC_KEY في متغيرات البيئة.
- * - وجود جدول push_subscriptions (مذكور في تقرير Supabase الأصلي)
- *   بأعمدة تخزّن اشتراك الـ Push Subscription لكل مستخدم.
- * يجب مراجعته مقابل مخطط قاعدة البيانات الفعلي بعد توفير ملف المايجريشن الكامل.
- */
-
 function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -26,8 +13,16 @@ function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
   return output.buffer as ArrayBuffer;
 }
 
-export async function registerPushNotifications(): Promise<boolean> {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+export async function registerPushNotifications(
+  profileId?: string,
+  options: { requestPermission?: boolean } = {},
+): Promise<boolean> {
+  if (
+    !window.isSecureContext ||
+    !('serviceWorker' in navigator) ||
+    !('PushManager' in window) ||
+    typeof Notification === 'undefined'
+  ) {
     console.warn('Push notifications are not supported in this browser.');
     return false;
   }
@@ -39,13 +34,17 @@ export async function registerPushNotifications(): Promise<boolean> {
   }
 
   try {
-    const permission = await Notification.requestPermission();
+    let permission = Notification.permission;
+    if (permission === 'default' && options.requestPermission) {
+      permission = await Notification.requestPermission();
+    }
     if (permission !== 'granted') return false;
 
     const registration = await navigator.serviceWorker.ready;
 
     let subscription = await registration.pushManager.getSubscription();
     if (!subscription) {
+      if (!options.requestPermission) return false;
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
@@ -53,15 +52,30 @@ export async function registerPushNotifications(): Promise<boolean> {
     }
 
     const { data: sessionData } = await supabase.auth.getSession();
-    const userId = sessionData.session?.user.id;
-    if (!userId) return false;
+    const authUserId = sessionData.session?.user.id;
+    if (!authUserId) return false;
+
+    let subscriptionProfileId = profileId;
+    if (!subscriptionProfileId) {
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('auth_user_id', authUserId)
+        .limit(1);
+      if (profileError) throw profileError;
+      subscriptionProfileId = profiles?.[0]?.id;
+    }
+    if (!subscriptionProfileId) return false;
 
     const { error } = await supabase.from('push_subscriptions').upsert(
       {
-        user_id: userId,
+        // push_subscriptions.user_id references profiles.id, not auth.users.id.
+        user_id: subscriptionProfileId,
+        endpoint: subscription.endpoint,
         subscription: JSON.parse(JSON.stringify(subscription.toJSON())),
+        updated_at: new Date().toISOString(),
       },
-      { onConflict: 'user_id' }
+      { onConflict: 'endpoint' }
     );
 
     return !error;

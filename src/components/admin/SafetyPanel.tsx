@@ -7,10 +7,23 @@ export const SafetyPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [reporterFilter, setReporterFilter] = useState('all');
+
+  const categoryLabels: Record<string, string> = {
+    plate_incorrect: 'رقم اللوحة غير صحيح',
+    vehicle_color_incorrect: 'لون السيارة غير صحيح',
+    harassment: 'تحرش أو مضايقة',
+    abusive_behavior: 'أسلوب مسيء',
+    scam: 'نصب أو احتيال',
+    not_eligible: 'غير مستحق للمساعدة',
+    other: 'سبب آخر',
+  };
 
   const fetchReports = async () => {
     setLoading(true);
-    const { data } = await supabase.from('reports').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('reports').select('*').order('created_at', { ascending: false });
+    if (error) setActionMsg('تعذر تحميل البلاغات. تأكد من صلاحية حساب الإدارة.');
     if (data) setReports(data as Report[]);
     setLoading(false);
   };
@@ -18,6 +31,11 @@ export const SafetyPanel: React.FC = () => {
   useEffect(() => {
     fetchReports();
   }, []);
+
+  const filteredReports = reports.filter((report) =>
+    (categoryFilter === 'all' || report.category === categoryFilter) &&
+    (reporterFilter === 'all' || report.reporter_role === reporterFilter),
+  );
 
   const handleSuspend = async (profileId: string) => {
     const reason = prompt('يرجى توثيق سبب تعليق الحساب في سجل التدقيق:');
@@ -69,7 +87,21 @@ export const SafetyPanel: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-3">
-          {reports.map((rep) => (
+          <div className="grid grid-cols-2 gap-2 rounded-2xl border border-[#146B44]/10 bg-white p-3">
+            <label className="text-[11px] font-semibold text-[#53645a]">نوع البلاغ
+              <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-[#8A949E]/40 bg-white px-2 text-xs">
+                <option value="all">كل التصنيفات</option>
+                {Object.entries(categoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </label>
+            <label className="text-[11px] font-semibold text-[#53645a]">مقدم البلاغ
+              <select value={reporterFilter} onChange={(event) => setReporterFilter(event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-[#8A949E]/40 bg-white px-2 text-xs">
+                <option value="all">كل المستخدمين</option><option value="volunteer">Shahm</option><option value="requester">Patient</option>
+              </select>
+            </label>
+          </div>
+          {filteredReports.length === 0 && <p className="rounded-xl bg-white p-5 text-center text-xs text-[#6B7280]">لا توجد بلاغات بهذا التصنيف.</p>}
+          {filteredReports.map((rep) => (
             <div key={rep.id} className="p-4 bg-white rounded-2xl border border-[#8A949E]/20 shadow-sm space-y-2">
               <div className="flex justify-between items-center text-xs">
                 <span className={`px-2 py-0.5 rounded-md font-semibold ${
@@ -78,6 +110,11 @@ export const SafetyPanel: React.FC = () => {
                   {rep.status === 'pending' ? 'قيد المراجعة' : 'تم التعامل'}
                 </span>
                 <span className="text-[#6B7280]">{new Date(rep.created_at).toLocaleString('ar-EG')}</span>
+              </div>
+
+              <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
+                <span className="rounded-full bg-[#E6F4ED] px-2.5 py-1 text-[#146B44]">{categoryLabels[rep.category] || 'سبب آخر'}</span>
+                <span className="rounded-full bg-[#F1F2F3] px-2.5 py-1 text-[#53645a]">مقدم البلاغ: {rep.reporter_role === 'volunteer' ? 'Shahm' : 'Patient'}</span>
               </div>
 
               <p className="text-sm font-medium text-[#1F2430] bg-[#F7F8F9] p-3 rounded-xl">{rep.reason}</p>

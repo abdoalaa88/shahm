@@ -10,16 +10,27 @@ type CreateTripPayload = {
   destination_lat: number;
   destination_lng: number;
   requester_relation: RequesterRelation;
-  scheduled_at: string;
-  problem_type: string;
   people_count: number;
   request_notes: string;
+  patient_profile_id: string;
 };
 
-const allowedOrigins = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
+const localDevelopmentOrigins = [
+  'http://localhost:4173',
+  'http://127.0.0.1:4173',
+  'http://localhost:4174',
+  'http://127.0.0.1:4174',
+  'http://localhost:4175',
+  'http://127.0.0.1:4175',
+];
+
+const allowedOrigins = [
+  ...(Deno.env.get('ALLOWED_ORIGINS') ?? '')
   .split(',')
   .map((origin) => origin.trim())
-  .filter(Boolean);
+  .filter(Boolean),
+  ...localDevelopmentOrigins,
+];
 
 const jsonHeaders = (request: Request) => {
   const requestOrigin = request.headers.get('origin') ?? '';
@@ -72,18 +83,9 @@ const isText = (
   value.trim().length >= minLength &&
   value.trim().length <= maxLength;
 
-const isValidScheduledAt = (value: unknown): value is string => {
-  if (typeof value !== 'string' || !value.trim()) return false;
-
-  const timestamp = Date.parse(value);
-
-  if (!Number.isFinite(timestamp)) return false;
-
-  const now = Date.now();
-  const max = now + 48 * 60 * 60 * 1000;
-
-  return timestamp > now && timestamp <= max;
-};
+const isUuid = (value: unknown): value is string =>
+  typeof value === 'string' &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
 const validatePayload = (
   payload: unknown,
@@ -106,14 +108,13 @@ const validatePayload = (
       data.requester_relation === 'guardian' ||
       data.requester_relation === 'companion'
     ) &&
-    ['عطل ميكانيكي', 'إطار مثقوب', 'نفاد الوقود', 'بطارية السيارة', 'مشكلة كهربائية', 'حادث أو طارئ', 'أخرى'].includes(data.problem_type ?? '') &&
     typeof data.people_count === 'number' &&
     Number.isInteger(data.people_count) &&
     data.people_count >= 1 &&
     data.people_count <= 8 &&
     typeof data.request_notes === 'string' &&
     data.request_notes.length <= 500 &&
-    isValidScheduledAt(data.scheduled_at)
+    isUuid(data.patient_profile_id)
   );
 };
 
@@ -128,15 +129,6 @@ const notifyVolunteers = async (
   data: CreateTripPayload,
 ) => {
   try {
-    const scheduledLabel =
-      Date.parse(data.scheduled_at) - Date.now() < 10 * 60 * 1000
-        ? 'الآن'
-        : new Date(data.scheduled_at).toLocaleString('ar-EG', {
-            weekday: 'long',
-            hour: '2-digit',
-            minute: '2-digit',
-          });
-
     await fetch(`${supabaseUrl}/functions/v1/send-push`, {
       method: 'POST',
       headers: {
@@ -145,10 +137,11 @@ const notifyVolunteers = async (
       },
       body: JSON.stringify({
         trip_id: tripId,
-        title: 'طلب مساعدة جديد قريب منك',
-        body: `${data.problem_type} · ${data.origin_area_label.trim()} ⟶ ${data.destination_area_label.trim()} · ${scheduledLabel}`,
+        title: 'طلب نقل مريض جديد قريب منك',
+        body: `نقل مريض · من ${data.origin_area_label.trim()} إلى ${data.destination_area_label.trim()} · الآن`,
         url: '/',
       }),
+      signal: AbortSignal.timeout(10_000),
     });
   } catch (pushError) {
     console.error('notifyVolunteers failed', pushError);
@@ -163,7 +156,7 @@ Deno.serve(async (request) => {
   }
 
   if (request.method === 'OPTIONS') {
-    return new Response('ok', {
+    return new Response(null, {
       status: 204,
       headers: jsonHeaders(request),
     });
@@ -233,8 +226,7 @@ Deno.serve(async (request) => {
 
   if (!validatePayload(payload)) {
     return response(request, 422, {
-      error:
-        'بيانات الطلب غير صحيحة أو الموعد يجب أن يكون خلال الـ 48 ساعة القادمة',
+      error: 'بيانات طلب النقل غير صحيحة. راجع المريض والمواقع والملاحظات وحاول مرة أخرى.',
     });
   }
 
@@ -267,6 +259,25 @@ Deno.serve(async (request) => {
     });
   }
 
+  const { data: requesterProfile, error: requesterProfileError } =
+    await userClient
+      .from('profiles')
+      .select('id')
+      .eq('auth_user_id', userData.user.id)
+      .eq('role', 'requester')
+      .eq('is_active', true)
+      .maybeSingle();
+
+  if (requesterProfileError || !requesterProfile) {
+    console.error('requester profile lookup failed', {
+      code: requesterProfileError?.code,
+      message: requesterProfileError?.message,
+    });
+    return response(request, 403, {
+      error: 'ملف طالب المساعدة غير موجود أو غير نشط',
+    });
+  }
+
   const serviceClient = createClient(
     supabaseUrl,
     supabaseServiceRoleKey,
@@ -281,8 +292,8 @@ Deno.serve(async (request) => {
   const data = payload as CreateTripPayload;
 
   const { data: tripId, error: tripError } =
-    await serviceClient.rpc('create_trip_from_proxy', {
-      p_requester_id: userData.user.id,
+    await serviceClient.rpc('create_medical_trip_from_proxy', {
+      p_requester_id: requesterProfile.id,
       p_origin_area_label: data.origin_area_label.trim(),
       p_origin_address: data.origin_address.trim(),
       p_origin_lat: data.origin_lat,
@@ -294,10 +305,11 @@ Deno.serve(async (request) => {
       p_destination_lat: data.destination_lat,
       p_destination_lng: data.destination_lng,
       p_requester_relation: data.requester_relation,
-      p_scheduled_at: data.scheduled_at,
-      p_problem_type: data.problem_type,
+      // Immediate trip requests use the database clock as the source of truth.
+      p_scheduled_at: new Date().toISOString(),
       p_people_count: data.people_count,
       p_request_notes: data.request_notes.trim(),
+      p_patient_profile_id: data.patient_profile_id,
       p_client_ip: trustedIp,
     });
 
@@ -312,9 +324,11 @@ Deno.serve(async (request) => {
     });
   }
 
-  // Trip already exists at this point — don't let a push failure turn a
-  // successful request into an error for the requester.
-  await notifyVolunteers(supabaseUrl, supabaseServiceRoleKey, tripId as string, data);
+  // Keep push delivery out of the request/response path so notification
+  // delays cannot make a successfully created trip appear to fail.
+  EdgeRuntime.waitUntil(
+    notifyVolunteers(supabaseUrl, supabaseServiceRoleKey, tripId as string, data),
+  );
 
   return response(request, 201, {
     trip_id: tripId,
