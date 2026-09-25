@@ -850,11 +850,6 @@ export const App: React.FC = () => {
     if (!saved) return;
     setRouteDestination(null);
     setRouteFilterEnabled(false);
-    // Refresh immediately so the volunteer can select a new destination without reloading.
-    if (volunteerLocation) {
-      void loadNearbyTrips(volunteerLocation);
-      void loadNearbyAssistanceRequests(volunteerLocation);
-    }
   };
 
 
