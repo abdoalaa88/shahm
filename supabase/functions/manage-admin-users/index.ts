@@ -81,28 +81,13 @@ Deno.serve(async (request) => {
     const { data: invited, error: inviteError } = await serviceClient.auth.admin.inviteUserByEmail(email, {
       data: { first_name: firstName },
     });
-    let targetUser = invited.user;
-    let invitationSent = Boolean(targetUser);
-    if (!targetUser && inviteError) {
-      // Existing users cannot be invited a second time; let the super admin
-      // attach an additional, separately-scoped profile to that identity.
-      for (let page = 1; page <= 10 && !targetUser; page += 1) {
-        const { data: userPage, error: listError } = await serviceClient.auth.admin.listUsers({ page, perPage: 1000 });
-        if (listError) return respond(500, { error: 'تعذر التحقق من الحساب الموجود. حاول مرة أخرى.' });
-        targetUser = userPage.users.find((user) => user.email?.toLowerCase() === email) ?? null;
-        if (userPage.users.length < 1000) break;
-      }
-      invitationSent = false;
+    // A supervisor invitation must create a new Auth identity. Never attach
+    // another role/profile to an existing account; that breaks the 1:1 model.
+    if (inviteError || !invited.user) {
+      console.error('admin invitation could not create a new auth identity', inviteError);
+      return respond(409, { error: 'تعذر إنشاء الدعوة. تأكد أن البريد غير مستخدم من قبل ثم حاول مرة أخرى.' });
     }
-    if (!targetUser) return respond(409, { error: inviteError?.message ?? 'تعذر إنشاء دعوة لهذا البريد.' });
-
-    const { data: existingRole, error: existingRoleError } = await serviceClient.from('profiles')
-      .select('id')
-      .eq('auth_user_id', targetUser.id)
-      .eq('role', role)
-      .maybeSingle();
-    if (existingRoleError) return respond(500, { error: 'تعذر التحقق من أدوار هذا الحساب.' });
-    if (existingRole) return respond(409, { error: 'هذا الحساب يملك الصلاحية المطلوبة بالفعل.' });
+    const targetUser = invited.user;
 
     const { data: newProfile, error: profileError } = await serviceClient.from('profiles').insert({
       auth_user_id: targetUser.id,
@@ -114,10 +99,8 @@ Deno.serve(async (request) => {
     }).select('id').single();
 
     if (profileError || !newProfile) {
-      if (invitationSent) await serviceClient.auth.admin.deleteUser(targetUser.id);
-      return respond(500, { error: invitationSent
-        ? 'تعذر إكمال إنشاء حساب المشرف؛ ألغينا الدعوة غير المكتملة. تحقق من مخطط قاعدة البيانات ثم أعد المحاولة.'
-        : 'تعذر إضافة دور المشرف إلى الحساب الموجود. تحقق من مخطط قاعدة البيانات ثم أعد المحاولة.' });
+      await serviceClient.auth.admin.deleteUser(targetUser.id);
+      return respond(500, { error: 'تعذر إكمال إنشاء حساب المشرف؛ ألغينا الدعوة غير المكتملة. تحقق من مخطط قاعدة البيانات ثم أعد المحاولة.' });
     }
 
     const { error: auditError } = await serviceClient.from('audit_logs').insert({
@@ -128,11 +111,11 @@ Deno.serve(async (request) => {
     });
     if (auditError) {
       await serviceClient.from('profiles').delete().eq('id', newProfile.id);
-      if (invitationSent) await serviceClient.auth.admin.deleteUser(targetUser.id);
+      await serviceClient.auth.admin.deleteUser(targetUser.id);
       console.error('admin invitation audit log failed', auditError);
       return respond(500, { error: 'تعذر توثيق الدعوة؛ لم نفعّل صلاحية المشرف.' });
     }
-    return respond(200, { ok: true, profile_id: newProfile.id, invitation_sent: invitationSent });
+    return respond(200, { ok: true, profile_id: newProfile.id, invitation_sent: true });
   }
 
   if (payload.action === 'set_active') {

@@ -210,8 +210,6 @@ export const App: React.FC = () => {
   const isOnlineRef = useRef(true);
   const [presenceCounts, setPresenceCounts] = useState<{ shahm: number | null; patient: number | null }>({ shahm: null, patient: null });
   const [roleSelection, setRoleSelection] = useState<UserRole | null>(null);
-  const [addingRequesterProfile, setAddingRequesterProfile] = useState(false);
-  const [canReturnToVolunteer, setCanReturnToVolunteer] = useState(false);
 
 
   const [firstName, setFirstName] = useState('');
@@ -547,34 +545,20 @@ export const App: React.FC = () => {
         .from('profiles')
         .select('*')
         .eq('auth_user_id', uid)
-        .order('created_at', { ascending: true });
+        .limit(2);
 
       if (error) throw error;
       if (activeUserId.current !== uid) return;
-      const preferredRole =
-        localStorage.getItem('shahm.pendingRole') ||
-        pendingProfile?.role ||
-        localStorage.getItem('shahm.activeProfileRole');
-      const explicitlyRequestedRole =
-        localStorage.getItem('shahm.pendingRole') || pendingProfile?.role;
-      // Resolve an existing privileged role first for logo sign-in; never assign a role.
-      const adminRolePriority: UserRole[] = [
-        'super_admin', 'ops_admin', 'verification_admin', 'analytics_viewer',
-      ];
-      const matchingProfile = explicitlyRequestedRole === 'super_admin'
-        ? adminRolePriority
-            .map((role) => profileRows?.find((candidate) => candidate.role === role))
-            .find(Boolean)
-        : explicitlyRequestedRole
-          ? profileRows?.find((candidate) => candidate.role === explicitlyRequestedRole)
-          : adminRolePriority
-              .map((role) => profileRows?.find((candidate) => candidate.role === role))
-              .find(Boolean) ??
-            profileRows?.find((candidate) => candidate.role === preferredRole) ??
-            profileRows?.[0];
-      const data =
-        matchingProfile ??
-        (explicitlyRequestedRole ? null : profileRows?.[0] ?? null);
+      // The database profile is the only source of the account role.
+      // Legacy duplicates must be resolved explicitly; never select via browser storage.
+      if ((profileRows?.length ?? 0) > 1) {
+        setProfile(null);
+        setRoleSelection(null);
+        setProfileError('هذا الحساب مرتبط بأكثر من ملف دور. سجّل الخروج وتواصل مع الإدارة لتصحيح الحساب قبل استخدامه.');
+        return;
+      }
+      const data = profileRows?.[0] ?? null;
+      const pendingRole = localStorage.getItem('shahm.pendingRole') || pendingProfile?.role;
 
       if (!data) {
         setProfile(null);
@@ -596,11 +580,6 @@ export const App: React.FC = () => {
         setRoleSelection(null);
         localStorage.removeItem('shahm.pendingRole');
         localStorage.removeItem('shahm.pendingProfile');
-        try {
-          localStorage.setItem('shahm.activeProfileRole', data.role);
-        } catch {
-          // Remembering the active role is optional when storage is unavailable.
-        }
         if (data.role === 'volunteer') {
           setVehicleType(data.vehicle_type || '');
           setVehicleColor(data.vehicle_color || '');
@@ -1455,6 +1434,19 @@ export const App: React.FC = () => {
 
     setProfileSaving(true);
     try {
+      // Preflight helps when profile loading is stale in another tab. The database
+      // UNIQUE constraint remains the final protection against races.
+      const { data: existingProfiles, error: existingProfilesError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('auth_user_id', sessionUser.id)
+        .limit(1);
+      if (existingProfilesError) throw existingProfilesError;
+      if (existingProfiles?.length) {
+        await fetchProfile(sessionUser.id);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('profiles')
         .insert({
@@ -1478,8 +1470,9 @@ export const App: React.FC = () => {
       if (error) {
         if (error.code === '23505') {
           await fetchProfile(sessionUser.id);
-          setRoleSelection(null);
-          setAddingRequesterProfile(false);
+          // A retry may follow a successful profile insert in another tab.
+          // Reloading lets the database's single profile remain authoritative.
+          await fetchProfile(sessionUser.id);
           return;
         }
         throw error;
@@ -1487,18 +1480,9 @@ export const App: React.FC = () => {
 
       setProfile(data);
       setRoleSelection(null);
-      setAddingRequesterProfile(false);
-      if (data.role === 'requester' && canReturnToVolunteer) {
-        setCanReturnToVolunteer(true);
-      }
       setProfileError(null);
       localStorage.removeItem('shahm.pendingRole');
       localStorage.removeItem('shahm.pendingProfile');
-      try {
-        localStorage.setItem('shahm.activeProfileRole', data.role);
-      } catch {
-        // The database profile remains authoritative when storage is unavailable.
-      }
       if (data.role === 'volunteer') {
         setVehicleDetailsConfirmed(true);
       }
@@ -1518,39 +1502,6 @@ export const App: React.FC = () => {
     setAssistanceLocation(null);
     setAckChecked(false);
     setShowAssistanceForm(true);
-  };
-
-  const handleReturnToVolunteer = async () => {
-    if (!sessionUser) return;
-
-    setErrorMessage(null);
-    setProfileLoading(true);
-
-    try {
-      const { data: volunteerProfile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('auth_user_id', sessionUser.id)
-        .eq('role', 'volunteer')
-        .maybeSingle();
-
-      if (error) throw error;
-      if (!volunteerProfile) throw new Error('تعذر العثور على ملف الشهم.');
-
-      setProfile(volunteerProfile);
-      setCanReturnToVolunteer(false);
-      try {
-        localStorage.setItem('shahm.activeProfileRole', 'volunteer');
-      } catch {
-        // The selected profile remains active for this session.
-      }
-    } catch (error: unknown) {
-      setErrorMessage(
-        error instanceof Error ? error.message : 'تعذر العودة إلى شاشة الشهم.',
-      );
-    } finally {
-      setProfileLoading(false);
-    }
   };
 
   const handleCreateTrip = async () => {
@@ -2095,7 +2046,7 @@ export const App: React.FC = () => {
   }
 
   // Admin roles are never self-registered through the public profile form.
-  if (sessionUser && roleSelection && roleSelection !== 'super_admin' && (!profile || addingRequesterProfile)) {
+  if (sessionUser && roleSelection && roleSelection !== 'super_admin' && !profile) {
     const selectedRoleLabel = roleSelection === 'requester' ? 'طالب المساعدة' : 'الشهم المتطوع';
     return (
       <div dir="rtl" className="shahm-auth-page shahm-signup-page min-h-screen bg-[#F7F8F9] flex flex-col justify-center items-center p-4">
@@ -2107,18 +2058,14 @@ export const App: React.FC = () => {
           <button type="button" onClick={() => {
             localStorage.removeItem('shahm.pendingRole');
             setRoleSelection(null);
-            setAddingRequesterProfile(false);
-            setCanReturnToVolunteer(false);
           }} className="text-xs text-[#6B7280] mb-4 hover:text-[#1F2430]">
-            {addingRequesterProfile ? 'العودة إلى شاشة الشهم' : '← تغيير الدور'}
+            ← رجوع
           </button>
           <h2 className="text-xl font-bold text-[#1F2430] mb-2">
-            {addingRequesterProfile ? 'استكمال بيانات طالب المساعدة' : `تسجيل بيانات ${selectedRoleLabel}`}
+            {`تسجيل بيانات ${selectedRoleLabel}`}
           </h2>
           <p className="text-sm leading-6 text-[#6B7280] mb-6">
-            {addingRequesterProfile
-              ? 'أدخل بيانات المريض مرة واحدة حتى نفتح لك نموذج طلب المساعدة.'
-              : 'أكمل بياناتك مرة واحدة لهذا الدور. بعد الحفظ ستدخل إلى حسابك مباشرة.'}
+            أكمل بياناتك مرة واحدة لهذا الدور. بعد الحفظ ستدخل إلى حسابك مباشرة.
           </p>
           {errorMessage && (
             <div role="alert" className="p-3 mb-4 bg-[#FCEAEA] text-[#B53A3A] text-xs rounded-xl flex items-center gap-2">
@@ -2339,16 +2286,6 @@ export const App: React.FC = () => {
         {showRequesterView && (
           <>
             {tripToRate && <TripRatingPrompt trip={tripToRate} role={profile.role} selectedStars={selectedTripStars} onSelect={setSelectedTripStars} selectedWord={selectedTripRatingWord} onSelectWord={setSelectedTripRatingWord} onSubmit={() => void handleRateTrip()} loading={ratingSubmitting} />}
-            {canReturnToVolunteer && (
-              <button
-                type="button"
-                onClick={() => void handleReturnToVolunteer()}
-                className="min-h-11 rounded-xl border border-[#146B44]/20 bg-white px-4 text-sm font-semibold text-[#146B44]"
-              >
-                العودة إلى طلبات المساعدة على الطريق
-              </button>
-            )}
-
             {reportSuccess && (
               <div className="p-3 bg-[#E6F4ED] text-[#146B44] text-xs rounded-xl flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
