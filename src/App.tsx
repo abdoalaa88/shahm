@@ -2029,7 +2029,7 @@ export const App: React.FC = () => {
                 className="welcome-role-card"
               >
                 <span className="welcome-role-icon"><LocateFixed aria-hidden="true" /></span>
-                <span className="welcome-role-copy"><strong>رايح مشوار</strong><small>اطلب مساندة من شهم قريب</small></span>
+                <span className="welcome-role-copy"><strong>عاوز توصيلة</strong><small>اطلب مساندة من شهم قريب</small></span>
                 <span className="welcome-role-arrow" aria-hidden="true">←</span>
               </button>
               <button
@@ -2064,7 +2064,7 @@ export const App: React.FC = () => {
 
   if (!sessionUser && roleSelection) {
     const selectedRoleLabel = roleSelection === 'requester'
-      ? 'رايح مشوار'
+      ? 'عاوز توصيلة'
       : roleSelection === 'volunteer'
         ? 'معايا عربية'
         : 'إدارة شهم';
