@@ -27,7 +27,7 @@ export type UserRole =
   | 'analytics_viewer'
   | 'super_admin';
 
-export type TripStatus = 'pending' | 'accepted' | 'completed' | 'cancelled';
+export type TripStatus = 'pending' | 'accepted' | 'completed' | 'cancelled' | 'expired';
 
 export type RequesterRelation =
   | 'patient'
@@ -47,6 +47,8 @@ export interface Profile {
   vehicle_plate_number?: string | null;
   vehicle_data_responsibility_ack?: boolean;
   vehicle_data_acknowledged_at?: string | null;
+  patient_age?: number | null;
+  patient_condition?: string | null;
   created_at: string;
 }
 
@@ -67,6 +69,8 @@ export interface PublicTrip {
   problem_type?: string;
   people_count?: number;
   request_notes?: string;
+  passenger_count?: number;
+  special_notes?: string | null;
   patient_profile_id?: string | null;
   // Persisted cancellation metadata lets the requester understand a reopened trip after realtime refreshes.
   cancellation_reason?: string | null;
@@ -90,6 +94,34 @@ export interface MedicalTripNearby extends Pick<PublicTrip,
   distance_km: number;
   requester_id: string;
   requester_first_name: string;
+}
+
+// RPC result shapes used by the volunteer UI and realtime hooks.
+export interface NearbyTrip extends Omit<MedicalTripNearby, 'people_count' | 'request_notes'> {
+  passenger_count: number;
+  special_notes: string | null;
+}
+
+export interface MyAssistanceRequest {
+  assistance_id: string;
+  issue_type: string;
+  description: string;
+  status: 'pending' | 'accepted';
+  created_at: string;
+  helper_id: string | null;
+  helper_first_name: string | null;
+  helper_phone: string | null;
+}
+
+export interface AssistanceContactData {
+  assistance_id: string;
+  requester_id: string;
+  requester_first_name: string;
+  requester_phone: string;
+  issue_type: string;
+  description: string;
+  lat: number;
+  lng: number;
 }
 
 export interface RatingSummary {
@@ -198,6 +230,8 @@ export interface ContactCardData {
   problem_type: string;
   people_count: number;
   request_notes: string;
+  passenger_count?: number;
+  special_notes?: string | null;
 }
 
 export interface Report {
