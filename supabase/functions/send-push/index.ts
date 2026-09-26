@@ -8,6 +8,8 @@
 type PushPayload = {
   user_ids?: string[];
   trip_id?: string;
+  assistance_id?: string;
+  type?: string;
   title: string;
   body: string;
   url?: string;
@@ -132,6 +134,9 @@ Deno.serve(async (request) => {
     title: payload.title,
     body: payload.body,
     url: payload.url ?? '/',
+    type: payload.type ?? (payload.trip_id ? 'trip' : payload.assistance_id ? 'assistance' : 'general'),
+    trip_id: payload.trip_id,
+    assistance_id: payload.assistance_id,
     tag: payload.tag ?? (payload.trip_id ? `trip-${payload.trip_id}` : undefined),
   });
 
