@@ -151,7 +151,8 @@ Deno.serve(async (request) => {
       const { data: nearby, error: nearbyError } = await service.rpc('get_nearby_volunteer_ids', {
         p_trip_id: trip.id,
         p_radius_km: 7,
-        p_max_age_minutes: 180,
+        // Match new-trip delivery; a closed PWA cannot keep refreshing location.
+        p_max_age_minutes: 7 * 24 * 60,
       });
       if (nearbyError) {
         console.error('Resolving volunteers for reopened trip failed:', nearbyError);
