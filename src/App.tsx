@@ -1193,7 +1193,13 @@ export const App: React.FC = () => {
             if (currentLocation) void loadNearbyTrips(currentLocation);
           },
         )
-        .subscribe();
+        .subscribe((status) => {
+          if (status !== 'SUBSCRIBED') {
+            console.warn('Volunteer trip Realtime channel status:', status);
+          } else {
+            refreshVolunteerStateOnResume();
+          }
+        });
 
       const assistanceChannel = supabase
         .channel(`captain-assistance-participant-${profile.id}`)
@@ -1203,8 +1209,10 @@ export const App: React.FC = () => {
         }, () => { void loadActiveAssistanceRequest(); })
         .subscribe();
 
-      const refreshTimer = window.setInterval(() => {
-        requestVolunteerLocation();
+      // Realtime is the fast path; poll while the volunteer app is foregrounded
+      // so dropped events cannot leave a new request hidden until manual refresh.
+      const refreshVisibleVolunteerData = () => {
+        if (document.visibilityState !== 'visible') return;
         const currentLocation = volunteerLocationRef.current;
         if (currentLocation) {
           void loadNearbyTrips(currentLocation);
@@ -1213,10 +1221,15 @@ export const App: React.FC = () => {
         void loadActiveAssistanceRequest();
         void loadAcceptedAssistance();
         void loadActiveVolunteerTrip(profile.id);
+      };
+      const refreshTimer = window.setInterval(refreshVisibleVolunteerData, 15000);
+      const locationTimer = window.setInterval(() => {
+        if (document.visibilityState === 'visible') requestVolunteerLocation();
       }, 60000);
 
       return () => {
         window.clearInterval(refreshTimer);
+        window.clearInterval(locationTimer);
         window.removeEventListener('pageshow', refreshVolunteerStateOnResume);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         supabase.removeChannel(channel);
