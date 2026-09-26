@@ -549,22 +549,28 @@ export const App: React.FC = () => {
 
       if (error) throw error;
       if (activeUserId.current !== uid) return;
-      // The database profile is the only source of the account role.
-      // Legacy duplicates must be resolved explicitly; never select via browser storage.
-      if ((profileRows?.length ?? 0) > 1) {
+      // The database remains authoritative. Prefer an administrative profile
+      // when migrating an account that still has a legacy volunteer profile.
+      const adminRolePriority = ['super_admin', 'ops_admin', 'verification_admin', 'analytics_viewer'];
+      const administrativeProfile = profileRows
+        ?.filter((candidate) => candidate.is_active && adminRolePriority.includes(candidate.role))
+        .sort((first, second) =>
+          adminRolePriority.indexOf(first.role) - adminRolePriority.indexOf(second.role),
+        )[0];
+      if ((profileRows?.length ?? 0) > 1 && !administrativeProfile) {
         setProfile(null);
         setRoleSelection(null);
         setProfileError('هذا الحساب مرتبط بأكثر من ملف دور. سجّل الخروج وتواصل مع الإدارة لتصحيح الحساب قبل استخدامه.');
         return;
       }
-      const data = profileRows?.[0] ?? null;
+      const data = administrativeProfile ?? profileRows?.[0] ?? null;
       const pendingRole = localStorage.getItem('shahm.pendingRole') || pendingProfile?.role;
 
       if (!data) {
         setProfile(null);
         setRoleSelection(
-          preferredRole === 'requester' || preferredRole === 'volunteer'
-            ? preferredRole
+          pendingRole === 'requester' || pendingRole === 'volunteer'
+            ? pendingRole
             : null,
         );
         if (pendingProfile) {
