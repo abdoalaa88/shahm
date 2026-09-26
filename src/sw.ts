@@ -95,15 +95,37 @@ self.addEventListener('notificationclick', (event) => {
       new URL(client.url).origin === self.location.origin
     );
     if (existingWindow) {
-      try {
+      // A suspended Android/PWA window can leave navigate() pending. Focus it
+      // first and bound both operations so the notification click still opens
+      // a fresh app window when the old one is no longer responsive.
+      const settleWithin = async <T,>(promise: Promise<T>, timeoutMs = 1200): Promise<T | null> => {
+        let timeoutId: number | undefined;
+        try {
+          return await Promise.race([
+            promise,
+            new Promise<null>((resolve) => {
+              timeoutId = self.setTimeout(() => resolve(null), timeoutMs);
+            }),
+          ]);
+        } catch {
+          return null;
+        } finally {
+          if (timeoutId !== undefined) self.clearTimeout(timeoutId);
+        }
+      };
+
+      const focusedWindow = await settleWithin(existingWindow.focus());
+      if (focusedWindow) {
         const currentUrl = new URL(existingWindow.url);
-        if (currentUrl.href !== targetUrl.href) await existingWindow.navigate(targetUrl.href);
-        await existingWindow.focus();
-        return;
-      } catch {
-        // Fall through to opening the app if navigating/focusing the tab fails.
+        if (currentUrl.href === targetUrl.href) return;
+        const navigatedWindow = await settleWithin(existingWindow.navigate(targetUrl.href));
+        if (navigatedWindow) {
+          await settleWithin(navigatedWindow.focus());
+          return;
+        }
       }
     }
+    // No usable window (or an old one failed to wake): launch the app route.
     await self.clients.openWindow(targetUrl.href);
   })());
 });
