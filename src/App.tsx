@@ -2015,7 +2015,7 @@ export const App: React.FC = () => {
             </button>
             <span className="welcome-kicker">خير الناس أنفعهم للناس</span>
             <h1>أهلاً بك في شَهْم</h1>
-            <p className="welcome-description">توصيلة في طريقك .. تخفف رحلة علاج غيرك.</p>
+            <p className="welcome-description">اطلب المساعدة أو كن سببًا فيها.</p>
 
             <div className="welcome-actions" aria-label="اختر طريقة استخدام شَهْم">
               <button
