@@ -3,4 +3,3 @@
 -- unnecessary API privilege while leaving the trigger itself intact.
 revoke all on function public.prevent_profile_privilege_escalation()
 from public, anon, authenticated;
-
