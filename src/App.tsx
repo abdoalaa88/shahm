@@ -2043,7 +2043,7 @@ export const App: React.FC = () => {
                 className="welcome-role-card"
               >
                 <span className="welcome-role-icon"><CarFront aria-hidden="true" /></span>
-                <span className="welcome-role-copy"><strong>معايا عربية</strong><small>كن شهمًا وساعد غيرك</small></span>
+                <span className="welcome-role-copy"><strong>معايا عربيـة</strong><small>كن شهمًا وساعد غيرك</small></span>
                 <span className="welcome-role-arrow" aria-hidden="true">←</span>
               </button>
             </div>
@@ -2066,7 +2066,7 @@ export const App: React.FC = () => {
     const selectedRoleLabel = roleSelection === 'requester'
       ? 'عاوز توصيلة'
       : roleSelection === 'volunteer'
-        ? 'معايا عربية'
+        ? 'معايا عربيـة'
         : 'إدارة شهم';
     return (
       <div dir="rtl" className="shahm-auth-page min-h-screen bg-[#F7F8F9] flex flex-col justify-center items-center p-4">
