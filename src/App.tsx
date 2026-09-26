@@ -1016,9 +1016,9 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     if (!profile?.id) return;
-    const initialOnline = profile.is_online !== false;
-    isOnlineRef.current = initialOnline;
-    setIsOnline(initialOnline);
+    // Opening an authenticated profile starts it online; the header control can switch availability off.
+    isOnlineRef.current = true;
+    setIsOnline(true);
     const heartbeat = () => {
       void updatePresence(profile.id, isOnlineRef.current);
       void refreshPresenceCounts();
@@ -2334,7 +2334,7 @@ export const App: React.FC = () => {
           <div className="shahm-hero-logo mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full border-[7px] border-[#DDEFE5] bg-white shadow-sm">
             <img aria-hidden="true" alt="" src="/shahm-logo-mark-20260924.png" className="h-14 w-14 object-contain" />
           </div>
-          <p className="text-base font-medium text-[#53645a]">في شهم</p>
+          <p className="text-base font-medium text-[#53645a]">عداد الخير</p>
           <div className="shahm-presence-grid mx-auto mt-4 grid w-full max-w-sm grid-cols-2 gap-3" aria-label="أعداد Shahm وPatient">
             <div className="shahm-presence-card">
               <span className="block text-xs font-semibold tracking-wide text-[#65736A]">Shahm</span>
