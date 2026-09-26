@@ -103,14 +103,30 @@ Deno.serve(async (request) => {
     return jsonResponse(200, { sent: 0, failed: 0 });
   }
 
-  const { data: subscriptions, error: subsError } = await serviceClient
-    .from('push_subscriptions')
-    .select('user_id, endpoint, subscription')
-    .in('user_id', targetUserIds);
+  // Keep PostgREST URL size predictable when a nearby event has many
+  // eligible recipients. Each profile can still have multiple device rows.
+  const userIdBatches: string[][] = [];
+  for (let index = 0; index < targetUserIds.length; index += 200) {
+    userIdBatches.push(targetUserIds.slice(index, index + 200));
+  }
 
-  if (subsError) {
+  const subscriptionResults = await Promise.all(
+    userIdBatches.map((userIds) =>
+      serviceClient
+        .from('push_subscriptions')
+        .select('user_id, endpoint, subscription')
+        .in('user_id', userIds)
+    ),
+  );
+  const failedSubscriptionQuery = subscriptionResults.find((result) => result.error);
+  if (failedSubscriptionQuery?.error) {
+    console.error('Could not load push subscriptions', {
+      code: failedSubscriptionQuery.error.code,
+      message: failedSubscriptionQuery.error.message,
+    });
     return jsonResponse(500, { error: 'Could not load push subscriptions' });
   }
+  const subscriptions = subscriptionResults.flatMap((result) => result.data ?? []);
 
   const notificationPayload = JSON.stringify({
     title: payload.title,
@@ -149,6 +165,10 @@ Deno.serve(async (request) => {
   await Promise.all(
     Array.from({ length: Math.min(SEND_CONCURRENCY, rows.length) }, () => sendWorker()),
   );
+
+  if (staleEndpoints.size > 0) {
+    console.warn('Expired push endpoints were detected and left intact by policy', { count: staleEndpoints.size });
+  }
 
   return jsonResponse(200, { sent, failed, stale: staleEndpoints.size });
 });
