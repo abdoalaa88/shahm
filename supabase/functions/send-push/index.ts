@@ -25,7 +25,8 @@ type StoredSubscription = {
 const NEARBY_RADIUS_KM = 20;
 // Bound provider/database work instead of opening thousands of requests at once.
 const SEND_CONCURRENCY = 20;
-const LOCATION_MAX_AGE_MINUTES = 180;
+// Mobile browsers cannot refresh location in the background while the PWA is closed.
+const LOCATION_MAX_AGE_MINUTES = 7 * 24 * 60;
 
 const localDevelopmentOrigins = [
   'http://localhost:4173',
@@ -195,9 +196,9 @@ Deno.serve(async (request) => {
   let targetUserIds = payload.user_ids ?? [];
 
   if (payload.trip_id && targetUserIds.length === 0) {
-    // Match active volunteers within the existing 20 km radius whose last
-    // known location was refreshed within the existing 3-hour window.
-    // App presence is deliberately not part of push eligibility.
+    // Match active volunteers within the existing 20 km radius whose last-known
+    // location is no more than a week old. App presence is not required because
+    // browsers cannot refresh location while the PWA is closed.
     const { data: nearby, error: nearbyError } = await serviceClient.rpc(
       'get_nearby_volunteer_ids',
       {
