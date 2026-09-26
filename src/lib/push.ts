@@ -27,12 +27,6 @@ export async function registerPushNotifications(
     return false;
   }
 
-  const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
-  if (!vapidPublicKey) {
-    console.error('VITE_VAPID_PUBLIC_KEY is not configured.');
-    return false;
-  }
-
   try {
     let permission = Notification.permission;
     if (permission === 'default' && options.requestPermission) {
@@ -40,11 +34,40 @@ export async function registerPushNotifications(
     }
     if (permission !== 'granted') return false;
 
+    // Use the public key from the same Supabase function that signs each push.
+    // This prevents stale web builds from silently drifting from server settings.
+    const { data: pushConfig, error: pushConfigError } = await supabase.functions.invoke(
+      'send-push',
+      { method: 'GET' },
+    );
+    if (pushConfigError) throw pushConfigError;
+    const vapidPublicKey = pushConfig?.vapidPublicKey;
+    if (typeof vapidPublicKey !== 'string' || !vapidPublicKey) {
+      throw new Error('Push configuration is missing its public key.');
+    }
+
     const registration = await navigator.serviceWorker.ready;
 
     let subscription = await registration.pushManager.getSubscription();
+    let previousEndpoint: string | null = null;
+    if (subscription) {
+      const currentKey = subscription.options.applicationServerKey;
+      const expectedKey = new Uint8Array(urlBase64ToUint8Array(vapidPublicKey));
+      const existingKey = currentKey ? new Uint8Array(currentKey) : null;
+      const keyMatches = existingKey?.length === expectedKey.length &&
+        expectedKey.every((byte, index) => byte === existingKey[index]);
+
+      // A subscription remains bound to the key used when it was created.
+      // Recreate stale subscriptions using the server's current public key.
+      if (!keyMatches) {
+        previousEndpoint = subscription.endpoint;
+        await subscription.unsubscribe();
+        subscription = null;
+      }
+    }
     if (!subscription) {
-      if (!options.requestPermission) return false;
+      // Renew stale subscriptions silently after permission was already granted.
+      if (!options.requestPermission && !previousEndpoint) return false;
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
@@ -84,6 +107,18 @@ export async function registerPushNotifications(
         code: error.code, message: error.message, details: error.details, hint: error.hint,
       });
       return false;
+    }
+
+    // Remove only this user's previous endpoint after its replacement is saved.
+    if (previousEndpoint && previousEndpoint !== subscription.endpoint) {
+      const { error: cleanupError } = await supabase
+        .from('push_subscriptions')
+        .delete()
+        .eq('user_id', subscriptionProfileId)
+        .eq('endpoint', previousEndpoint);
+      if (cleanupError) {
+        console.warn('Could not remove the replaced push subscription:', cleanupError.code);
+      }
     }
     return true;
   } catch (err) {
