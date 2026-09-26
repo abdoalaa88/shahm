@@ -8,6 +8,8 @@
 type PushPayload = {
   user_ids?: string[];
   trip_id?: string;
+  assistance_id?: string;
+  type?: string;
   title: string;
   body: string;
   url?: string;
@@ -20,7 +22,9 @@ type StoredSubscription = {
 };
 
 // Notification targeting for new trips (see get_nearby_volunteer_ids).
-const NEARBY_RADIUS_KM = 7;
+const NEARBY_RADIUS_KM = 20;
+// Bound provider/database work instead of opening thousands of requests at once.
+const SEND_CONCURRENCY = 20;
 const LOCATION_MAX_AGE_MINUTES = 180;
 
 const jsonResponse = (status: number, body: Record<string, unknown>) =>
@@ -72,8 +76,9 @@ Deno.serve(async (request) => {
   let targetUserIds = payload.user_ids ?? [];
 
   if (payload.trip_id && targetUserIds.length === 0) {
-    // Only ACTIVE volunteers whose last known position is within 20 km of the
-    // trip's pick-up point and was reported in the last 3 hours.
+    // Match active volunteers within the existing 20 km radius whose last
+    // known location was refreshed within the existing 3-hour window.
+    // App presence is deliberately not part of push eligibility.
     const { data: nearby, error: nearbyError } = await serviceClient.rpc(
       'get_nearby_volunteer_ids',
       {
@@ -94,32 +99,57 @@ Deno.serve(async (request) => {
     targetUserIds = (nearby ?? []).map((row: { user_id: string }) => row.user_id);
   }
 
+  targetUserIds = [...new Set(targetUserIds)];
+
   if (targetUserIds.length === 0) {
     return jsonResponse(200, { sent: 0, failed: 0 });
   }
 
-  const { data: subscriptions, error: subsError } = await serviceClient
-    .from('push_subscriptions')
-    .select('user_id, endpoint, subscription')
-    .in('user_id', targetUserIds);
+  // Keep PostgREST URL size predictable when a nearby event has many
+  // eligible recipients. Each profile can still have multiple device rows.
+  const userIdBatches: string[][] = [];
+  for (let index = 0; index < targetUserIds.length; index += 200) {
+    userIdBatches.push(targetUserIds.slice(index, index + 200));
+  }
 
-  if (subsError) {
+  const subscriptionResults = await Promise.all(
+    userIdBatches.map((userIds) =>
+      serviceClient
+        .from('push_subscriptions')
+        .select('user_id, endpoint, subscription')
+        .in('user_id', userIds)
+    ),
+  );
+  const failedSubscriptionQuery = subscriptionResults.find((result) => result.error);
+  if (failedSubscriptionQuery?.error) {
+    console.error('Could not load push subscriptions', {
+      code: failedSubscriptionQuery.error.code,
+      message: failedSubscriptionQuery.error.message,
+    });
     return jsonResponse(500, { error: 'Could not load push subscriptions' });
   }
+  const subscriptions = subscriptionResults.flatMap((result) => result.data ?? []);
 
   const notificationPayload = JSON.stringify({
     title: payload.title,
     body: payload.body,
     url: payload.url ?? '/',
+    type: payload.type ?? (payload.trip_id ? 'trip' : payload.assistance_id ? 'assistance' : 'general'),
+    trip_id: payload.trip_id,
+    assistance_id: payload.assistance_id,
     tag: payload.tag ?? (payload.trip_id ? `trip-${payload.trip_id}` : undefined),
   });
 
   let sent = 0;
   let failed = 0;
   const staleEndpoints = new Set<string>();
+  const rows = subscriptions ?? [];
+  let nextIndex = 0;
 
-  await Promise.all(
-    (subscriptions ?? []).map(async (row: { user_id: string; endpoint: string; subscription: StoredSubscription }) => {
+  // Keep fan-out bounded for projects with thousands of subscriptions.
+  const sendWorker = async () => {
+    while (nextIndex < rows.length) {
+      const row = rows[nextIndex++];
       try {
         await webpush.sendNotification(row.subscription, notificationPayload);
         sent += 1;
@@ -127,17 +157,23 @@ Deno.serve(async (request) => {
         failed += 1;
         const statusCode = (err as { statusCode?: number })?.statusCode;
         if (statusCode === 404 || statusCode === 410) {
+          // Preserve subscription rows during this audit; report stale endpoints
+          // without deleting user/device data.
           staleEndpoints.add(row.endpoint);
         } else {
           console.error('push send failed', { user_id: row.user_id, statusCode });
         }
       }
-    })
+    }
+  };
+
+  await Promise.all(
+    Array.from({ length: Math.min(SEND_CONCURRENCY, rows.length) }, () => sendWorker()),
   );
 
   if (staleEndpoints.size > 0) {
-    await serviceClient.from('push_subscriptions').delete().in('endpoint', [...staleEndpoints]);
+    console.warn('Expired push endpoints were detected and left intact by policy', { count: staleEndpoints.size });
   }
 
-  return jsonResponse(200, { sent, failed, pruned: staleEndpoints.size });
+  return jsonResponse(200, { sent, failed, stale: staleEndpoints.size });
 });
