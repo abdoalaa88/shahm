@@ -689,6 +689,12 @@ export const App: React.FC = () => {
         volunteerLocationRef.current = nextLocation;
         setVolunteerLocation(nextLocation);
         locationRequestInProgress.current = false;
+        // Re-query as soon as fresh coordinates arrive. This closes the startup race
+        // where the route preference loads before geolocation and Realtime was missed.
+        if (routePreferenceReady.current) {
+          void loadNearbyTrips(nextLocation);
+          void loadNearbyAssistanceRequests(nextLocation);
+        }
       },
       (error) => {
         console.warn('Could not refresh volunteer location:', error.code);
@@ -870,10 +876,31 @@ export const App: React.FC = () => {
 
   const handleAvailabilityToggle = async () => {
     if (!profile?.id) return;
-    const nextOnline = !isOnlineRef.current;
+    const previousOnline = isOnlineRef.current;
+    const nextOnline = !previousOnline;
     isOnlineRef.current = nextOnline;
     setIsOnline(nextOnline);
-    await updatePresence(profile.id, nextOnline);
+
+    const saved = await updatePresence(profile.id, nextOnline);
+    if (!saved) {
+      // Keep the UI in sync with Supabase instead of showing a false online state.
+      isOnlineRef.current = previousOnline;
+      setIsOnline(previousOnline);
+      setErrorMessage('تعذر تحديث حالة الاتصال. حاول مرة أخرى.');
+      return;
+    }
+
+    if (nextOnline) {
+      // A trip may have been created while this app was closed, so do not wait
+      // for a Realtime event that was missed in the background.
+      requestVolunteerLocation();
+      const currentLocation = volunteerLocationRef.current || volunteerLocation;
+      if (currentLocation) {
+        void loadNearbyTrips(currentLocation);
+        void loadNearbyAssistanceRequests(currentLocation);
+      }
+      void loadActiveVolunteerTrip(profile.id);
+    }
     void refreshPresenceCounts();
   };
 
@@ -1128,6 +1155,27 @@ export const App: React.FC = () => {
       void loadActiveAssistanceRequest();
       void loadAcceptedAssistance();
 
+      // Refresh on resume because trips can be created while the PWA is suspended.
+      let lastResumeRefreshAt = 0;
+      const refreshVolunteerStateOnResume = () => {
+        if (document.visibilityState === 'hidden' || Date.now() - lastResumeRefreshAt < 1500) return;
+        lastResumeRefreshAt = Date.now();
+        requestVolunteerLocation();
+        const currentLocation = volunteerLocationRef.current;
+        if (currentLocation) {
+          void loadNearbyTrips(currentLocation);
+          void loadNearbyAssistanceRequests(currentLocation);
+        }
+        void loadActiveVolunteerTrip(profile.id);
+        void loadActiveAssistanceRequest();
+        void loadAcceptedAssistance();
+      };
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') refreshVolunteerStateOnResume();
+      };
+      window.addEventListener('pageshow', refreshVolunteerStateOnResume);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+
       const channel = supabase
         .channel(`trips-realtime-${profile.id}`)
         .on(
@@ -1169,6 +1217,8 @@ export const App: React.FC = () => {
 
       return () => {
         window.clearInterval(refreshTimer);
+        window.removeEventListener('pageshow', refreshVolunteerStateOnResume);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
         supabase.removeChannel(channel);
         supabase.removeChannel(assistanceChannel);
       };
