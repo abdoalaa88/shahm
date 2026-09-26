@@ -165,7 +165,7 @@ Deno.serve(async (request) => {
   }
 
   const authHeader = request.headers.get('authorization') ?? '';
-  if (authHeader !== \`Bearer \${serviceRoleKey}\`) {
+  if (authHeader !== `Bearer ${serviceRoleKey}`) {
     return jsonResponse(401, { error: 'Not authorized to trigger push notifications' });
   }
 
