@@ -27,26 +27,145 @@ const NEARBY_RADIUS_KM = 20;
 const SEND_CONCURRENCY = 20;
 const LOCATION_MAX_AGE_MINUTES = 180;
 
-const jsonResponse = (status: number, body: Record<string, unknown>) =>
-  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+const localDevelopmentOrigins = [
+  'http://localhost:4173',
+  'http://127.0.0.1:4173',
+  'http://localhost:4174',
+  'http://127.0.0.1:4174',
+  'http://localhost:4175',
+  'http://127.0.0.1:4175',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+];
+const allowedOrigins = [
+  ...(Deno.env.get('ALLOWED_ORIGINS') ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+  'https://shahm-eg.pages.dev',
+  ...localDevelopmentOrigins,
+];
+
+const corsHeaders = (origin: string) => ({
+  'Access-Control-Allow-Origin': origin,
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Content-Type': 'application/json',
+  'Vary': 'Origin',
+});
+
+const jsonResponse = (
+  status: number,
+  body: Record<string, unknown>,
+  request?: Request,
+) => {
+  const origin = request?.headers.get('origin') ?? '';
+  const headers = origin && allowedOrigins.includes(origin)
+    ? corsHeaders(origin)
+    : { 'Content-Type': 'application/json' };
+  return new Response(JSON.stringify(body), { status, headers });
+};
+
+function base64UrlToBytes(value: string): Uint8Array {
+  const padding = '='.repeat((4 - (value.length % 4)) % 4);
+  const base64 = (value + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const binary = atob(base64);
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+
+function bytesToBase64Url(value: Uint8Array): string {
+  let binary = '';
+  for (const byte of value) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+}
+
+// Detect a mismatched server key pair before the push provider rejects every send.
+async function vapidKeysMatch(publicKey: string, privateKey: string): Promise<boolean> {
+  try {
+    const publicBytes = base64UrlToBytes(publicKey);
+    const privateBytes = base64UrlToBytes(privateKey);
+    if (publicBytes.length !== 65 || publicBytes[0] !== 4 || privateBytes.length !== 32) return false;
+
+    const jwk: JsonWebKey = {
+      kty: 'EC',
+      crv: 'P-256',
+      x: bytesToBase64Url(publicBytes.slice(1, 33)),
+      y: bytesToBase64Url(publicBytes.slice(33, 65)),
+      d: bytesToBase64Url(privateBytes),
+      ext: true,
+      key_ops: ['sign'],
+    };
+    const signer = await crypto.subtle.importKey(
+      'jwk',
+      jwk,
+      { name: 'ECDSA', namedCurve: 'P-256' },
+      false,
+      ['sign'],
+    );
+    const verifier = await crypto.subtle.importKey(
+      'raw',
+      publicBytes,
+      { name: 'ECDSA', namedCurve: 'P-256' },
+      false,
+      ['verify'],
+    );
+    const challenge = new TextEncoder().encode('shahm-vapid-key-check');
+    const signature = await crypto.subtle.sign(
+      { name: 'ECDSA', hash: 'SHA-256' },
+      signer,
+      challenge,
+    );
+    return await crypto.subtle.verify(
+      { name: 'ECDSA', hash: 'SHA-256' },
+      verifier,
+      signature,
+      challenge,
+    );
+  } catch {
+    return false;
+  }
+}
 
 Deno.serve(async (request) => {
-  if (request.method !== 'POST') {
-    return jsonResponse(405, { error: 'Method not allowed' });
-  }
-
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const vapidPublicKey = Deno.env.get('VITE_VAPID_PUBLIC_KEY') ?? Deno.env.get('VAPID_PUBLIC_KEY');
   const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY');
   const vapidSubject = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:support@shahm.app';
 
+  if (request.method === 'OPTIONS') {
+    const origin = request.headers.get('origin') ?? '';
+    if (!allowedOrigins.includes(origin)) return new Response(null, { status: 403 });
+    return new Response(null, { status: 204, headers: corsHeaders(origin) });
+  }
+
+  if (request.method === 'GET') {
+    const origin = request.headers.get('origin') ?? '';
+    if (!allowedOrigins.includes(origin)) {
+      return jsonResponse(403, { error: 'Origin not allowed' });
+    }
+    if (!vapidPublicKey || !vapidPrivateKey || !(await vapidKeysMatch(vapidPublicKey, vapidPrivateKey))) {
+      console.error('Push configuration is missing or VAPID keys do not match.');
+      return jsonResponse(503, { error: 'Push configuration is invalid' }, request);
+    }
+    // The VAPID public key is public by design. This endpoint keeps it in sync with sending.
+    return jsonResponse(200, { vapidPublicKey }, request);
+  }
+
+  if (request.method !== 'POST') {
+    return jsonResponse(405, { error: 'Method not allowed' }, request);
+  }
+
   if (!supabaseUrl || !serviceRoleKey || !vapidPublicKey || !vapidPrivateKey) {
     return jsonResponse(500, { error: 'Push function environment is incomplete' });
   }
+  if (!(await vapidKeysMatch(vapidPublicKey, vapidPrivateKey))) {
+    console.error('Push request blocked because the VAPID public/private keys do not match.');
+    return jsonResponse(500, { error: 'Push configuration is invalid' });
+  }
 
   const authHeader = request.headers.get('authorization') ?? '';
-  if (authHeader !== `Bearer ${serviceRoleKey}`) {
+  if (authHeader !== \`Bearer \${serviceRoleKey}\`) {
     return jsonResponse(401, { error: 'Not authorized to trigger push notifications' });
   }
 
@@ -102,7 +221,8 @@ Deno.serve(async (request) => {
   targetUserIds = [...new Set(targetUserIds)];
 
   if (targetUserIds.length === 0) {
-    return jsonResponse(200, { sent: 0, failed: 0 });
+    console.info('No nearby active volunteers matched this trip.');
+    return jsonResponse(200, { sent: 0, failed: 0, targets: 0, subscriptions: 0 });
   }
 
   // Keep PostgREST URL size predictable when a nearby event has many
@@ -161,7 +281,8 @@ Deno.serve(async (request) => {
           // without deleting user/device data.
           staleEndpoints.add(row.endpoint);
         } else {
-          console.error('push send failed', { user_id: row.user_id, statusCode });
+          // Never log endpoints or user details; provider status is enough to diagnose.
+          console.error('push send failed', { statusCode });
         }
       }
     }
@@ -175,5 +296,18 @@ Deno.serve(async (request) => {
     console.warn('Expired push endpoints were detected and left intact by policy', { count: staleEndpoints.size });
   }
 
-  return jsonResponse(200, { sent, failed, stale: staleEndpoints.size });
+  console.info('Push delivery completed', {
+    targets: targetUserIds.length,
+    subscriptions: rows.length,
+    sent,
+    failed,
+    stale: staleEndpoints.size,
+  });
+  return jsonResponse(200, {
+    targets: targetUserIds.length,
+    subscriptions: rows.length,
+    sent,
+    failed,
+    stale: staleEndpoints.size,
+  });
 });
