@@ -139,7 +139,7 @@ const notifyVolunteers = async (
   data: CreateTripPayload,
 ) => {
   try {
-    await fetch(`${supabaseUrl}/functions/v1/send-push`, {
+    const pushResponse = await fetch(`${supabaseUrl}/functions/v1/send-push`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -152,6 +152,21 @@ const notifyVolunteers = async (
         url: '/',
       }),
       signal: AbortSignal.timeout(10_000),
+    });
+    const pushResult = await pushResponse.json().catch(() => ({})) as Record<string, unknown>;
+    if (!pushResponse.ok) {
+      console.error('send-push request failed', {
+        status: pushResponse.status,
+        error: pushResult.error,
+      });
+      return;
+    }
+    console.info('send-push delivery result', {
+      targets: pushResult.targets,
+      subscriptions: pushResult.subscriptions,
+      sent: pushResult.sent,
+      failed: pushResult.failed,
+      stale: pushResult.stale,
     });
   } catch (pushError) {
     console.error('notifyVolunteers failed', pushError);
