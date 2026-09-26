@@ -1435,7 +1435,7 @@ export const App: React.FC = () => {
     setProfileSaving(true);
     try {
       // Preflight helps when profile loading is stale in another tab. The database
-      // UNIQUE constraint below remains the final protection against races.
+      // UNIQUE constraint remains the final protection against races.
       const { data: existingProfiles, error: existingProfilesError } = await supabase
         .from('profiles')
         .select('id')
