@@ -2029,7 +2029,7 @@ export const App: React.FC = () => {
                 className="welcome-role-card"
               >
                 <span className="welcome-role-icon"><LocateFixed aria-hidden="true" /></span>
-                <span className="welcome-role-copy"><strong>احتاج توصيله</strong><small>اطلب مساندة من شهم قريب</small></span>
+                <span className="welcome-role-copy"><strong>رايح مشوار</strong><small>اطلب مساندة من شهم قريب</small></span>
                 <span className="welcome-role-arrow" aria-hidden="true">←</span>
               </button>
               <button
@@ -2043,7 +2043,7 @@ export const App: React.FC = () => {
                 className="welcome-role-card"
               >
                 <span className="welcome-role-icon"><CarFront aria-hidden="true" /></span>
-                <span className="welcome-role-copy"><strong>أرغب بالمساعدة</strong><small>كن شهمًا وساعد غيرك</small></span>
+                <span className="welcome-role-copy"><strong>معايا عربية</strong><small>كن شهمًا وساعد غيرك</small></span>
                 <span className="welcome-role-arrow" aria-hidden="true">←</span>
               </button>
             </div>
@@ -2064,9 +2064,9 @@ export const App: React.FC = () => {
 
   if (!sessionUser && roleSelection) {
     const selectedRoleLabel = roleSelection === 'requester'
-      ? 'احتاج توصيله'
+      ? 'رايح مشوار'
       : roleSelection === 'volunteer'
-        ? 'أرغب بالمساعدة'
+        ? 'معايا عربية'
         : 'إدارة شهم';
     return (
       <div dir="rtl" className="shahm-auth-page min-h-screen bg-[#F7F8F9] flex flex-col justify-center items-center p-4">
