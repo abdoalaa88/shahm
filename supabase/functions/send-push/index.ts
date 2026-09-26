@@ -47,7 +47,7 @@ const allowedOrigins = [
 ];
 
 const corsHeaders = (origin: string) => ({
-  'Access-Control-Allow-Origin': origin,
+  'Access-Control-Allow-Origin': allowedOrigins.includes('*') ? '*' : origin,
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Content-Type': 'application/json',
@@ -135,13 +135,13 @@ Deno.serve(async (request) => {
 
   if (request.method === 'OPTIONS') {
     const origin = request.headers.get('origin') ?? '';
-    if (!allowedOrigins.includes(origin)) return new Response(null, { status: 403 });
+    if (!allowedOrigins.includes(origin) && !allowedOrigins.includes('*')) return new Response(null, { status: 403 });
     return new Response(null, { status: 204, headers: corsHeaders(origin) });
   }
 
   if (request.method === 'GET') {
     const origin = request.headers.get('origin') ?? '';
-    if (!allowedOrigins.includes(origin)) {
+    if (!allowedOrigins.includes(origin) && !allowedOrigins.includes('*')) {
       return jsonResponse(403, { error: 'Origin not allowed' });
     }
     if (!vapidPublicKey || !vapidPrivateKey || !(await vapidKeysMatch(vapidPublicKey, vapidPrivateKey))) {
