@@ -142,6 +142,33 @@ const InstallNotice: React.FC<InstallNoticeProps> = ({
   </div>
 );
 
+type PushPermissionPromptProps = {
+  loading: boolean;
+  error: string | null;
+  onEnable: () => void;
+  onLater: () => void;
+};
+
+const PushPermissionPrompt: React.FC<PushPermissionPromptProps> = ({ loading, error, onEnable, onLater }) => (
+  <div className="fixed inset-0 z-[110] grid place-items-center bg-[#10251b]/60 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="push-permission-title" dir="rtl">
+    <section className="w-full max-w-sm space-y-4 rounded-3xl border border-[#146B44]/15 bg-white p-6 text-center shadow-2xl">
+      <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#E6F4ED] text-[#146B44]"><BellRing className="h-7 w-7" aria-hidden="true" /></div>
+      <div>
+        <h2 id="push-permission-title" className="text-xl font-bold text-[#1F2430]">فعّل إشعارات شهم</h2>
+        <p className="mt-2 text-sm leading-6 text-[#6B7280]">ليصلك تنبيه عند وجود مشوار يحتاج المساندة، حتى عندما يكون التطبيق مغلقًا.</p>
+      </div>
+      {error && <p role="alert" className="rounded-xl bg-[#FCEAEA] p-3 text-xs leading-5 text-[#B53A3A]">{error}</p>}
+      <div className="space-y-2">
+        <button type="button" onClick={onEnable} disabled={loading} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#146B44] text-sm font-bold text-white disabled:opacity-60">
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BellRing className="h-4 w-4" />}
+          تفعيل الإشعارات
+        </button>
+        <button type="button" onClick={onLater} disabled={loading} className="min-h-11 w-full rounded-xl text-sm font-semibold text-[#6B7280] hover:bg-[#F7F8F9] disabled:opacity-60">لاحقًا</button>
+      </div>
+    </section>
+  </div>
+);
+
 const normalizeDigits = (value: string) => value
   .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
   .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)));
@@ -208,7 +235,8 @@ export const App: React.FC = () => {
   const [profile, setProfile] = useState<any>(null);
   const [isOnline, setIsOnline] = useState(true);
   const isOnlineRef = useRef(true);
-  const [presenceCounts, setPresenceCounts] = useState<{ shahm: number | null; patient: number | null }>({ shahm: null, patient: null });
+  const [presenceCounts, setPresenceCounts] = useState<{ shahm: number | null; patient: number | null }>({ shahm: 0, patient: 0 });
+  const [showPushPermissionPrompt, setShowPushPermissionPrompt] = useState(false);
   const [roleSelection, setRoleSelection] = useState<UserRole | null>(null);
 
 
@@ -613,6 +641,17 @@ export const App: React.FC = () => {
     }
   };
 
+  const rememberPushPromptDismissal = () => {
+    if (profile?.id) {
+      try {
+        localStorage.setItem(`shahm.push-prompt-dismissed:${profile.id}`, '1');
+      } catch (error) {
+        console.warn('Could not save push prompt dismissal:', error);
+      }
+    }
+    setShowPushPermissionPrompt(false);
+  };
+
   const handleEnablePushNotifications = async () => {
     if (pushLoading || pushEnabled) return;
 
@@ -625,6 +664,7 @@ export const App: React.FC = () => {
       });
       if (enabled) {
         setPushEnabled(true);
+        rememberPushPromptDismissal();
       } else {
         let message = 'تعذر حفظ تسجيل الإشعارات لهذا الحساب. تحقق من اتصالك ثم حاول مرة أخرى.';
         if (
@@ -654,6 +694,24 @@ export const App: React.FC = () => {
     setPushError(null);
 
     if (!profile?.id) return () => { cancelled = true; };
+
+    // Show this first-run prompt for every signed-in role. The browser's actual
+    // system dialog must be initiated by the user's tap on the enable button.
+    const canRequestPush = window.isSecureContext
+      && 'serviceWorker' in navigator
+      && 'PushManager' in window
+      && typeof Notification !== 'undefined'
+      && Boolean(import.meta.env.VITE_VAPID_PUBLIC_KEY)
+      && Notification.permission === 'default';
+    if (canRequestPush) {
+      try {
+        setShowPushPermissionPrompt(!localStorage.getItem(`shahm.push-prompt-dismissed:${profile.id}`));
+      } catch {
+        setShowPushPermissionPrompt(true);
+      }
+    } else {
+      setShowPushPermissionPrompt(false);
+    }
 
     // Re-sync an existing permission/subscription silently. Browsers require
     // the permission prompt itself to be triggered by an explicit user action.
@@ -786,6 +844,7 @@ export const App: React.FC = () => {
       if (error) {
         // Keep the last good counts visible during transient RPC/network failures.
         console.error('Loading online user counts failed:', error);
+        setPresenceCounts((current) => ({ shahm: current.shahm ?? 0, patient: current.patient ?? 0 }));
         return;
       }
       const row = data?.[0];
@@ -796,10 +855,12 @@ export const App: React.FC = () => {
         });
       } else {
         console.error('Loading online user counts returned no aggregate row.');
+        setPresenceCounts((current) => ({ shahm: current.shahm ?? 0, patient: current.patient ?? 0 }));
       }
     } catch (error) {
       // Supabase RPC can reject before returning { error } on transport failures.
       console.error('Loading online user counts threw an exception:', error);
+      setPresenceCounts((current) => ({ shahm: current.shahm ?? 0, patient: current.patient ?? 0 }));
     }
   };
 
@@ -809,6 +870,48 @@ export const App: React.FC = () => {
     if (error) { console.error('Updating availability failed:', error); return false; }
     return true;
   };
+
+  // Realtime contains aggregate counts only; profile rows stay protected by RLS.
+  useEffect(() => {
+    if (!profile?.id) return;
+    let active = true;
+    const channel = supabase
+      .channel('shahm:presence-counts', { config: { private: true } })
+      .on('broadcast', { event: 'presence_counts_updated' }, ({ payload }) => {
+        if (!active || !payload || typeof payload !== 'object') return;
+        const shahm = Number((payload as { shahm_count?: unknown }).shahm_count);
+        const patient = Number((payload as { patient_count?: unknown }).patient_count);
+        if (Number.isSafeInteger(shahm) && shahm >= 0 && Number.isSafeInteger(patient) && patient >= 0) {
+          setPresenceCounts({ shahm, patient });
+        }
+      })
+      .subscribe((status, error) => {
+        if (status === 'SUBSCRIBED') void refreshPresenceCounts();
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.error('Online count realtime subscription failed:', error ?? status);
+        }
+      });
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
+  }, [profile?.id]);
+
+  // Load counts immediately and recover missed Realtime events when the app returns.
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void refreshPresenceCounts();
+    };
+    void refreshPresenceCounts();
+    const timer = window.setInterval(refreshWhenVisible, 15000);
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, []);
 
   const loadRatingSummary = async (profileId: string) => {
     const { data, error } = await supabase.rpc('get_rating_summary', { p_profile_id: profileId });
@@ -1019,9 +1122,10 @@ export const App: React.FC = () => {
     // Opening an authenticated profile starts it online; the header control can switch availability off.
     isOnlineRef.current = true;
     setIsOnline(true);
-    const heartbeat = () => {
-      void updatePresence(profile.id, isOnlineRef.current);
-      void refreshPresenceCounts();
+    const heartbeat = async () => {
+      // Await presence write before reading counts to avoid a stale login count.
+      await updatePresence(profile.id, isOnlineRef.current);
+      await refreshPresenceCounts();
     };
     heartbeat();
     const timer = window.setInterval(heartbeat, 60000);
@@ -2295,6 +2399,14 @@ export const App: React.FC = () => {
       <div dir="rtl" className={'shahm-app-shell min-h-screen bg-[#F7F8F9] flex flex-col text-right' + (isAdmin ? ' shahm-admin-shell' : '')}>
       {configurationNotice}
       {installNotice}
+      {showPushPermissionPrompt && (
+        <PushPermissionPrompt
+          loading={pushLoading}
+          error={pushError}
+          onEnable={() => void handleEnablePushNotifications()}
+          onLater={rememberPushPromptDismissal}
+        />
+      )}
 
       <header className="shahm-app-header sticky top-0 z-40 border-b border-[#8A949E]/20 bg-white px-4 py-2">
         <div className="shahm-header-content mx-auto max-w-2xl space-y-2">
@@ -2338,11 +2450,11 @@ export const App: React.FC = () => {
           <div className="shahm-presence-grid mx-auto mt-4 grid w-full max-w-sm grid-cols-2 gap-3" aria-label="أعداد Shahm وPatient">
             <div className="shahm-presence-card">
               <span className="block text-xs font-semibold tracking-wide text-[#65736A]">Shahm</span>
-              <strong className="mt-1 block text-2xl font-extrabold tabular-nums text-[#08784B]">{presenceCounts.shahm ?? '—'}</strong>
+              <strong className="mt-1 block text-2xl font-extrabold tabular-nums text-[#08784B]">{presenceCounts.shahm ?? 0}</strong>
             </div>
             <div className="shahm-presence-card">
               <span className="block text-xs font-semibold tracking-wide text-[#65736A]">Patient</span>
-              <strong className="mt-1 block text-2xl font-extrabold tabular-nums text-[#08784B]">{presenceCounts.patient ?? '—'}</strong>
+              <strong className="mt-1 block text-2xl font-extrabold tabular-nums text-[#08784B]">{presenceCounts.patient ?? 0}</strong>
             </div>
           </div>
         </section>
